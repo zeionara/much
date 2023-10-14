@@ -45,6 +45,9 @@ class Post:
     def from_html(cls, html: BeautifulSoup):
         body = html.find('blockquote')
 
+        if body is None:
+            body = html.find('article')
+
         text = MENTION_TEMPLATE.sub(' ', OP_TEMPLATE.sub(' ', body.text)).strip()
         if len(text) < MIN_POST_LENGTH:
             return None, None

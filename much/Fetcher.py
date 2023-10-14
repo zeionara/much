@@ -47,10 +47,11 @@ class Fetcher:
 
         # posts = soup.find_all('blockquote', {'class': 'post-message'})
 
-        append_post(soup.find('div', {'class': 'post oppost'}))
+        append_post(soup.find('div', {'class': ('post', 'oppost')}))
 
         # posts = soup.find_all('div', {'class': 'post reply'})
-        for post in soup.select('div[class*="post reply"]'):
+        # for post in soup.select('div[class*="post reply"]'):
+        for post in soup.find_all('div', {'class': ('post', 'reply')}):
             append_post(post)
 
             # mention, post = Post.from_html(post)
