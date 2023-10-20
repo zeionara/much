@@ -17,7 +17,7 @@ class Fetcher:
         pass
 
     def fetch(self, url: str):
-        print(f'Pulling data from {url}...')
+        # print(f'Pulling data from {url}...')
 
         id_to_post = {}
         ids = set()
