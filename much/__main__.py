@@ -42,8 +42,8 @@ def pull(url: str, path: str):
 ROOT = 'https://2ch.hk'
 PAGE_TEMPLATE = f'{ROOT}/b/arch/{{id}}.html'
 
-PATH = 'assets/data'
-INDEX = 'assets/index.tsv'
+PATH = '../batch/batch'
+INDEX = '../batch/index.tsv'
 
 
 @main.command()
