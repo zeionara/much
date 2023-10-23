@@ -4,6 +4,8 @@ import re
 
 from bs4 import BeautifulSoup
 
+from .util import SPACE, normalize
+
 
 MENTION_TEMPLATE = re.compile('>>[0-9]+')
 OP_TEMPLATE = re.compile(r'\(OP\)>?')
@@ -48,7 +50,7 @@ class Post:
         if body is None:
             body = html.find('article')
 
-        text = MENTION_TEMPLATE.sub(' ', OP_TEMPLATE.sub(' ', body.text)).strip()
+        text = normalize(MENTION_TEMPLATE.sub(SPACE, OP_TEMPLATE.sub(SPACE, body.get_text(separator = SPACE))))
         if len(text) < MIN_POST_LENGTH:
             return None, None
 
