@@ -29,6 +29,10 @@ class Fetcher:
         soup = BeautifulSoup(page, features = 'html.parser')
 
         def append_post(post):
+            if post is None:
+                print(f'Post is none for url {url}')
+                return
+
             mentions, post = Post.from_html(post)
 
             if post is None:
