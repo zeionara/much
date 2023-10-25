@@ -58,7 +58,7 @@ class Fetcher:
                     ids.remove(mention.id)
                     # comments.append('>' * depth + ' ' + mention.text)
                     comments.append(mention)
-                append_mentions(mention, comments = comments, depth = depth + 1)
+                    append_mentions(mention, comments = comments, depth = depth + 1)
 
         if url.endswith('html'):
             response = get(url)
