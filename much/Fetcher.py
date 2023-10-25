@@ -2,8 +2,12 @@ from requests import get
 from dataclasses import dataclass
 
 from bs4 import BeautifulSoup
+from numpy import percentile
 
 from .Post import Post
+
+
+POST_SIZE_PERCENTILE = 15
 
 
 @dataclass
@@ -22,11 +26,8 @@ class Fetcher:
         id_to_post = {}
         ids = set()
 
-        response = get(url)
-
-        page = response.text
-
-        soup = BeautifulSoup(page, features = 'html.parser')
+        post_sizes = []
+        min_post_length = 0  # later this value is inferred using percentile defined above
 
         def append_post(post):
             if post is None:
@@ -37,6 +38,8 @@ class Fetcher:
 
             if post is None:
                 return
+
+            post_sizes.append(post.size)
 
             ids.add(post.id)
 
@@ -49,53 +52,61 @@ class Fetcher:
                     # else:
                     #     print(f'No mention {mention}')
 
-        # posts = soup.find_all('blockquote', {'class': 'post-message'})
+        def append_mentions(post: Post, comments: list, depth: int = 1):
+            for mention in post.mentions:
+                if mention.id in ids:
+                    ids.remove(mention.id)
+                    # comments.append('>' * depth + ' ' + mention.text)
+                    comments.append(mention)
+                append_mentions(mention, comments = comments, depth = depth + 1)
 
-        append_post(soup.find('div', {'class': ('post', 'oppost')}))
+        if url.endswith('html'):
+            response = get(url)
 
-        # posts = soup.find_all('div', {'class': 'post reply'})
-        # for post in soup.select('div[class*="post reply"]'):
-        for post in soup.find_all('div', {'class': ('post', 'reply')}):
-            append_post(post)
+            page = response.text
 
-            # mention, post = Post.from_html(post)
+            soup = BeautifulSoup(page, features = 'html.parser')
 
-            # if post is None:
-            #     continue
+            append_post(soup.find('div', {'class': ('post', 'oppost')}))
 
-            # id_to_post[post.id] = post
+            for post in soup.find_all('div', {'class': ('post', 'reply')}):
+                append_post(post)
+        elif url.endswith('json'):
+            # response = get(url)
 
-            # if mention is not None:
-            #     if mention in id_to_post:
-            #         id_to_post[mention].append(post)
-            #     else:
-            #         print(f'No mention {mention}')
+            # page = response.json()
 
-        # print(id_to_post[181770267])
+            # print(page)
+
+            raise ValueError('JSON links are not supported')
+
+        # print(sorted(post_sizes))
+        min_post_length = int(percentile(post_sizes, POST_SIZE_PERCENTILE))
 
         topics = []
 
         for post in sorted(id_to_post.values(), key = lambda post: (post.length, len(post.text)), reverse = True):
 
-            # for mention in post.mentions:
-            #     if mention.text == 181771392:
-            #         print(post)
-
-            if post.id in ids:
-                # print(post.describe(ids))
-                # print()
+            if post.id in ids and post.size >= min_post_length:
 
                 comments = []
 
-                for mention in post.mentions:
-                    if mention.id in ids:
-                        ids.remove(mention.id)
-                        comments.append(mention.text)
+                append_mentions(post, comments = comments)
+
+                # for mention in post.mentions:
+                #     if mention.id in ids:
+                #         ids.remove(mention.id)
+                #         comments.append(mention.text)
+
+                #         for mention in mention.mentions:
+                #             if mention.id in ids:
+                #                 ids.remove(mention.id)
+                #                 comments.append(mention.text)
 
                 topics.append(
                     Topic(
                         title = post.text,
-                        comments = comments
+                        comments = tuple(comment.text for comment in comments if comment.size >= min_post_length)
                     )
                 )
 

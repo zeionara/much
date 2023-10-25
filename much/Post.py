@@ -9,7 +9,7 @@ from .util import SPACE, normalize
 
 MENTION_TEMPLATE = re.compile('>>[0-9]+')
 OP_TEMPLATE = re.compile(r'\(OP\)>?')
-MIN_POST_LENGTH = 100
+MIN_POST_LENGTH = 0
 
 
 class Post:
@@ -42,6 +42,10 @@ class Post:
     @property
     def length(self):
         return len(self.mentions)
+
+    @property
+    def size(self):
+        return len(self.text)
 
     @classmethod
     def from_html(cls, html: BeautifulSoup):
