@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from shutil import copyfile
+from html import unescape
 
 from click import group, argument, option
 from requests import get
@@ -8,7 +9,7 @@ from bs4 import BeautifulSoup
 from pandas import DataFrame, read_csv, concat
 from tqdm import tqdm
 
-from .Fetcher import Fetcher
+from .Fetcher import Fetcher, Topic
 from .Exporter import Exporter, Format
 
 
@@ -46,6 +47,17 @@ PATH = '../batch/batch'
 INDEX = '../batch/index.tsv'
 
 
+def expand_title(title: str, topics: [Topic]):
+    title = unescape(title)
+
+    for topic in topics:
+        match = topic.find(title)
+
+        if match is not None:
+            return match
+
+    return title
+
 @main.command()
 @argument('page', type = int)
 @option('--path', '-p', type = str, help = 'path to the directory which will contain pulled files', default = PATH)
@@ -73,15 +85,18 @@ def fetch(page: int, path: str, index: str):
     for thread in tqdm(bs.find_all('span', {'class': 'arch-threadnum'})):
         link = thread.find_previous("a")
         # records.append({'thread': int(thread.text[2:-2]), 'date': f'{ROOT}{link["href"]}', 'title': link.text})
-        records.append({
-            'thread': (thread_id := int(thread.text[2:-2])),
-            'date': '-'.join(link["href"].split('/')[3].split('-')[::-1]),
-            'title': link.text
-        })
+        thread_id = int(thread.text[2:-2])
 
         file = os.path.join(path, f'{thread_id}.txt')
 
-        exporter.export(fetcher.fetch(url = f'{ROOT}{link["href"]}'), Format.TXT, path = file)
+        exporter.export(topics := fetcher.fetch(url = f'{ROOT}{link["href"]}'), Format.TXT, path = file)
+
+        records.append({
+            'thread': thread_id,
+            'date': '-'.join(link["href"].split('/')[3].split('-')[::-1]),
+            'path': path,
+            'title': expand_title(title = link.text, topics = topics)
+        })
 
         i += 1
 
@@ -89,6 +104,7 @@ def fetch(page: int, path: str, index: str):
     # print(records[:5])
 
     df = DataFrame.from_records(records)
+    df = df[['thread', 'date', 'path', 'title']]  # reorder columns for convenience
 
     if os.path.isfile(index):
         df = concat([read_csv(index, sep = '\t'), df])
@@ -103,21 +119,22 @@ def fetch(page: int, path: str, index: str):
 def top(n: int, path: str, index: str):
     index = read_csv(index, sep = '\t')
 
-    for file in sorted(
+    for folder, file in sorted(
         [
-            file
-            for file in [
-                os.path.join(path, file)
-                for file in os.listdir(path)
-            ]
-            if os.path.isfile(file)
+            (folder, os.path.join(folder, file))
+            for folder, _, files in os.walk(path)
+            for file in files
         ],
-        key = lambda file: os.stat(file).st_size,
+        key = lambda folder_and_file: os.stat(folder_and_file[1]).st_size,
         reverse = True
     )[:n]:
         thread_id = int(Path(file).stem)
 
-        print(f'{os.stat(file).st_size / 1024:.2f} KB', thread_id, index.loc[index.thread == thread_id].iloc[0]['title'])
+        print(
+            f'{os.stat(file).st_size / 1024:.2f} KB',
+            thread_id,
+            index.loc[(index.thread == thread_id) & (index.path == folder)].iloc[0]['title']
+        )
 
 
 @main.command()

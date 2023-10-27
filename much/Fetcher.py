@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from numpy import percentile
 
 from .Post import Post
+from .util import pure_spaces
 
 
 POST_SIZE_PERCENTILE = 15
@@ -14,6 +15,16 @@ POST_SIZE_PERCENTILE = 15
 class Topic:
     title: str
     comments: tuple[str]
+
+    def find(self, title: str):
+        if self.title.startswith(title):
+            return self.title
+
+        for comment in self.comments:
+            if comment.startswith(title):
+                return comment
+
+        return None
 
 
 class Fetcher:
@@ -36,7 +47,7 @@ class Fetcher:
 
             mentions, post = Post.from_html(post)
 
-            if post is None:
+            if post is None or pure_spaces(post.text):
                 return
 
             post_sizes.append(post.size)
@@ -80,8 +91,7 @@ class Fetcher:
 
             raise ValueError('JSON links are not supported')
 
-        # print(sorted(post_sizes))
-        min_post_length = int(percentile(post_sizes, POST_SIZE_PERCENTILE))
+        min_post_length = 0 if len(post_sizes) < 1 else int(percentile(post_sizes, POST_SIZE_PERCENTILE))
 
         topics = []
 
