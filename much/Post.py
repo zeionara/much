@@ -9,6 +9,7 @@ from .util import SPACE, normalize
 
 MENTION_TEMPLATE = re.compile('>>[0-9]+')
 OP_TEMPLATE = re.compile(r'\(OP\)>?')
+EMPTY = ''
 MIN_POST_LENGTH = 0
 
 
@@ -54,11 +55,12 @@ class Post:
         if body is None:
             body = html.find('article')
 
-        text = normalize(MENTION_TEMPLATE.sub(SPACE, OP_TEMPLATE.sub(SPACE, body.get_text(separator = SPACE))))
+        body_text = None if body is None else body.get_text(separator = SPACE)
+        text = normalize(MENTION_TEMPLATE.sub(SPACE, OP_TEMPLATE.sub(SPACE, EMPTY if body_text is None else body_text)))
         if len(text) < MIN_POST_LENGTH:
             return None, None
 
-        key = int(body['id'][1:])
+        key = None if body is None else int(body['id'][1:])
 
         # print(html)
 
