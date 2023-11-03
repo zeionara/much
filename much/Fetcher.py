@@ -45,7 +45,11 @@ class Fetcher:
                 print(f'Post is none for url {url}')
                 return
 
-            mentions, post = Post.from_html(post)
+            try:
+                mentions, post = Post.from_html(post)
+            except Exception as e:
+                print(f'Can\'t handle post {url}')
+                raise
 
             if post is None or pure_spaces(post.text):
                 return

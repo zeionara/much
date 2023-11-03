@@ -62,7 +62,8 @@ def expand_title(title: str, topics: [Topic]):
 @argument('page', type = int)
 @option('--path', '-p', type = str, help = 'path to the directory which will contain pulled files', default = PATH)
 @option('--index', '-i', type = str, help = 'path to the file with pulled files index', default = INDEX)
-def fetch(page: int, path: str, index: str):
+@option('--skip-fetched', '-s', is_flag = True, help = 'skip posts, for which corresponding files already exist')
+def fetch(page: int, path: str, index: str, skip_fetched: bool):
     if not os.path.isdir(path):
         os.makedirs(path)
 
@@ -83,12 +84,15 @@ def fetch(page: int, path: str, index: str):
     exporter = Exporter()
 
     for thread in tqdm(bs.find_all('span', {'class': 'arch-threadnum'})):
-        link = thread.find_previous("a")
         # records.append({'thread': int(thread.text[2:-2]), 'date': f'{ROOT}{link["href"]}', 'title': link.text})
-        thread_id = int(thread.text[2:-2])
 
+        thread_id = int(thread.text[2:-2])
         file = os.path.join(path, f'{thread_id}.txt')
 
+        if os.path.isfile(file) and skip_fetched:
+            continue
+
+        link = thread.find_previous("a")
         exporter.export(topics := fetcher.fetch(url = f'{ROOT}{link["href"]}'), Format.TXT, path = file)
 
         records.append({
@@ -103,13 +107,14 @@ def fetch(page: int, path: str, index: str):
     # print(f'Pulled {i} threads')
     # print(records[:5])
 
-    df = DataFrame.from_records(records)
-    df = df[['thread', 'date', 'path', 'title']]  # reorder columns for convenience
+    if len(records) > 0:
+        df = DataFrame.from_records(records)
+        df = df[['thread', 'date', 'path', 'title']]  # reorder columns for convenience
 
-    if os.path.isfile(index):
-        df = concat([read_csv(index, sep = '\t'), df])
+        if os.path.isfile(index):
+            df = concat([read_csv(index, sep = '\t'), df])
 
-    df.to_csv(index, sep = '\t', index = False)
+        df.to_csv(index, sep = '\t', index = False)
 
 
 @main.command()
