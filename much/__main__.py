@@ -154,5 +154,26 @@ def star(thread_id: int, name: str, source_path: str, destination_path: str):
     copyfile(os.path.join(source_path, f'{thread_id}.txt'), os.path.join(destination_path, f'{name}.txt'))
 
 
+@main.command()
+@argument('thread-id', type = int)
+@option('--index', '-i', type = str, default = INDEX)
+def link(thread_id: int, index: str):
+    index = read_csv(index, sep = '\t')
+
+    items = index[index.thread == thread_id]
+
+    if (size := items.shape[0]) < 1:
+        raise ValueError(f'Too few matching items: {size}')
+
+    if (size := items.shape[0]) > 1:
+        raise ValueError(f'Too many matching items: {size}')
+
+    record = items.iloc[0].to_dict()
+
+    print(f'https://2ch.hk/b/arch/{"-".join(record["date"].split("-")[::-1])}/res/{record["thread"]}.html')
+
+
+
+
 if __name__ == '__main__':
     main()
