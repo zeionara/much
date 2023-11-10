@@ -1,5 +1,7 @@
 from requests import get
+from requests.exceptions import SSLError
 from dataclasses import dataclass
+from time import sleep
 
 from bs4 import BeautifulSoup
 from numpy import percentile
@@ -9,6 +11,7 @@ from .util import pure_spaces
 
 
 POST_SIZE_PERCENTILE = 15
+SSL_ERROR_DELAY = 1  # seconds
 
 
 @dataclass
@@ -76,7 +79,15 @@ class Fetcher:
                     append_mentions(mention, comments = comments, depth = depth + 1)
 
         if url.endswith('html'):
-            response = get(url)
+            response = None
+
+            while response is None:
+                try:
+                    response = get(url)
+                except SSLError:
+                    print(f'SSLError when fetching {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
+                    sleep(SSL_ERROR_DELAY)
+                    print(f'Retrying to fetch {url}...')
 
             page = response.text
 
