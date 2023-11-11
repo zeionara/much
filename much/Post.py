@@ -55,18 +55,19 @@ class Post:
         return len(self.text)
 
     @classmethod
-    def from_body(cls, body: BeautifulSoup, html: BeautifulSoup = None):
+    def from_body(cls, body: BeautifulSoup, html: BeautifulSoup = None, key = None):
         body_text = None if body is None else body.get_text(separator = SPACE)
         text = normalize(MENTION_TEMPLATE.sub(SPACE, OP_TEMPLATE.sub(SPACE, EMPTY if body_text is None else body_text)))
         if len(text) < MIN_POST_LENGTH:
             return None, None
 
-        try:
-            key = None if body is None else post_id_to_int(body['id'])
-        except KeyError:
-            key = None
-        except ValueError:
-            key = post_id_to_int(POST_ID_TEMPLATE.findall(str(body))[0])
+        if key is None:
+            try:
+                key = None if body is None else post_id_to_int(body['id'])
+            except KeyError:
+                key = None
+            except ValueError:
+                key = post_id_to_int(POST_ID_TEMPLATE.findall(str(body))[0])
 
         # print(html)
 
@@ -82,9 +83,14 @@ class Post:
 
     @classmethod
     def from_html(cls, html: BeautifulSoup):
-        body = html.find('blockquote')
+        body = html.find("blockquote")
 
         if body is None:
             body = html.find('article')
 
-        return cls.from_body(body, html)
+        if body is None:
+            body = html.find('div', {'class': 'post_comment_body'})
+
+        key = html.get('postid')
+
+        return cls.from_body(body, html, key = None if key is None else int(key))

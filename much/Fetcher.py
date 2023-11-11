@@ -78,33 +78,27 @@ class Fetcher:
                     comments.append(mention)
                     append_mentions(mention, comments = comments, depth = depth + 1)
 
-        if url.endswith('html'):
-            response = None
-
-            while response is None:
-                try:
-                    response = get(url)
-                except SSLError:
-                    print(f'SSLError when fetching {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
-                    sleep(SSL_ERROR_DELAY)
-                    print(f'Retrying to fetch {url}...')
-
-            page = response.text
-
-            soup = BeautifulSoup(page, features = 'html.parser')
-
-            append_post(soup.find('div', {'class': ('post', 'oppost')}))
-
-            for post in soup.find_all('div', {'class': ('post', 'reply')}):
-                append_post(post)
-        elif url.endswith('json'):
-            # response = get(url)
-
-            # page = response.json()
-
-            # print(page)
-
+        if url.endswith('json'):
             raise ValueError('JSON links are not supported')
+
+        response = None
+
+        while response is None:
+            try:
+                response = get(url)
+            except SSLError:
+                print(f'SSLError when fetching {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
+                sleep(SSL_ERROR_DELAY)
+                print(f'Retrying to fetch {url}...')
+
+        page = response.text
+
+        soup = BeautifulSoup(page, features = 'html.parser')
+
+        append_post(soup.find('div', {'class': ('post', 'oppost')}))
+
+        for post in soup.find_all('div', {'class': ('post', 'reply')}):
+            append_post(post)
 
         min_post_length = 0 if len(post_sizes) < 1 else int(percentile(post_sizes, POST_SIZE_PERCENTILE))
 
