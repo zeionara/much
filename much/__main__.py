@@ -11,11 +11,76 @@ from tqdm import tqdm
 
 from .Fetcher import Fetcher, Topic
 from .Exporter import Exporter, Format
+from .Post import Post
 
 
 @group()
 def main():
     pass
+
+
+THREAD_URL = 'https://2ch.hk/b/res/{thread}.html'
+
+
+@main.command()
+@argument('url', type = str, default = 'https://2ch.hk/b/catalog.json')
+@option('--path', '-p', type = str, default = 'threads/0000-0019')
+@option('--index', '-i', type = str, default = 'index.tsv')
+def load(url: str, path: str, index: str):
+    last_records_list = read_csv(index, sep = '\t').to_dict(orient = 'records') if os.path.isfile(index) else None
+    last_records = None if last_records_list is None else {
+        item['thread']: item
+        for item in last_records_list
+    }
+
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    response = get(url)
+
+    if (code := response.status_code) != 200:
+        raise ValueError(f'Inacceptable status code: {code}')
+
+    json = response.json()
+    records_list = []
+    records = {}
+
+    fetcher = Fetcher()
+    exporter = Exporter()
+
+    for thread in tqdm(json['threads']):
+        day, month, year = thread['date'].split(' ')[0].split('/')
+
+        records_list.append(
+            record := {
+                'thread': (thread_id := thread['num']),
+                'date': f'{day}-{month}-20{year}',
+                'path': path.replace('../', ''),
+                'title': Post.from_body(BeautifulSoup(thread['comment'], 'html.parser'))[1].text,
+                'open': True
+            }
+        )
+
+        # try:
+        exporter.export(fetcher.fetch(thread_url := THREAD_URL.format(thread = thread_id)), format = Format.TXT, path = os.path.join(path, f'{thread_id}.txt'))
+        records[thread_id] = record
+        # except TypeError:
+        #     print(f'Cant process url {thread_url}. Skipping...')
+
+    if last_records is None:
+        df = DataFrame.from_records(records_list)
+    else:
+        for thread, item in last_records.items():
+            if thread not in records and item['open'] is True:
+                item['open'] = False
+
+        for thread, item in records.items():
+            if thread not in last_records:
+                last_records_list.append(item)
+
+        df = DataFrame(last_records_list)
+
+    df.to_csv(index, sep = '\t', index = False)
 
 
 @main.command()

@@ -49,22 +49,20 @@ class Post:
         return len(self.text)
 
     @classmethod
-    def from_html(cls, html: BeautifulSoup):
-        body = html.find('blockquote')
-
-        if body is None:
-            body = html.find('article')
-
+    def from_body(cls, body: BeautifulSoup, html: BeautifulSoup = None):
         body_text = None if body is None else body.get_text(separator = SPACE)
         text = normalize(MENTION_TEMPLATE.sub(SPACE, OP_TEMPLATE.sub(SPACE, EMPTY if body_text is None else body_text)))
         if len(text) < MIN_POST_LENGTH:
             return None, None
 
-        key = None if body is None else int(body['id'][1:])
+        try:
+            key = None if body is None else int(body['id'][1:])
+        except KeyError:
+            key = None
 
         # print(html)
 
-        mentions = html.find_all('a', {'class': 'post-reply-link'})
+        mentions = None if html is None else html.find_all('a', {'class': 'post-reply-link'})
 
         if mentions is not None:
             mentions = [int(mention['data-num']) for mention in mentions]
@@ -73,3 +71,12 @@ class Post:
         #     print(mention['data-num'])
 
         return mentions, cls(text = text, id = key)
+
+    @classmethod
+    def from_html(cls, html: BeautifulSoup):
+        body = html.find('blockquote')
+
+        if body is None:
+            body = html.find('article')
+
+        return cls.from_body(body, html)

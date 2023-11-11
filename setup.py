@@ -21,5 +21,5 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3.11"
     ],
-    install_requires = ['click', 'bs4', 'requests']
+    install_requires = ['click', 'beautifulsoup4', 'pandas', 'requests', 'tqdm', 'requests']
 )
