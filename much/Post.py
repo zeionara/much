@@ -12,6 +12,12 @@ OP_TEMPLATE = re.compile(r'\(OP\)>?')
 EMPTY = ''
 MIN_POST_LENGTH = 0
 
+POST_ID_TEMPLATE = re.compile('m[0-9]{4,}')
+
+
+def post_id_to_int(post_id: str):
+    return int(post_id[1:])
+
 
 class Post:
     def __init__(self, text: str, id: str, mentions: list[Post] = None):
@@ -56,9 +62,11 @@ class Post:
             return None, None
 
         try:
-            key = None if body is None else int(body['id'][1:])
+            key = None if body is None else post_id_to_int(body['id'])
         except KeyError:
             key = None
+        except ValueError:
+            key = post_id_to_int(POST_ID_TEMPLATE.findall(str(body))[0])
 
         # print(html)
 
