@@ -42,7 +42,11 @@ def _get_board_name(thread: BeautifulSoup):
 
 
 def _decode_date(date: str):
-    day, month, year = date.split(' ')
+    try:
+        day, month, year = date.split(' ')
+    except ValueError:
+        print(f'Can\'t decode date: {date}')
+        return date
 
     match month:
         case 'января':
