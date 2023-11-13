@@ -79,7 +79,6 @@ def _decode_date(date: str):
     return f'{int(day):02d}-{decoded_month:02d}-{int(year):04d}'
 
 
-ARHIVACH_INCREMENT = 25
 TIMEOUT = 3600
 
 
@@ -89,19 +88,35 @@ TIMEOUT = 3600
 @option('--debug', '-d', is_flag = True)
 @option('--n-top', '-n', type = int, default = None)
 @option('--index', '-i', type = str, default = None)
-def filter(url: str, start: int, debug: bool, n_top: int, index: str):
+@option('--step', '-t', type = int, default = 25)
+def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int):
     records = []
-    content = None if index is None else read_csv(index, sep = '\t')
+
+    if index is None:
+        content = None
+        seen_keys = set()
+    else:
+        content = read_csv(index, sep = '\t')
+        seen_keys = set(content.thread)
+
+        if len(seen_keys) != content.shape[0]:
+            raise ValueError(f'Input index contains duplicates ({len(seen_keys)} != {content.shape[0]})')
 
     def handle_page(page: str):
         bs = BeautifulSoup(page, 'html.parser')
 
         for thread in bs.find_all('tr')[1:][::-1]:
-            n_stars = int(thread.find('span', {'class': 'thread_posts_count'}).text)
-
             _text = thread.find('div', {'class': 'thread_text'})
-            text = normalize(_text.get_text(separator = SPACE))
             key = int(_text.find('a')['href'].split('/')[2])
+
+            if key in seen_keys:
+                # print(f'skipping thread {key} which has already been handled')
+                continue
+
+            seen_keys.add(key)
+
+            text = normalize(_text.get_text(separator = SPACE))
+            n_stars = int(thread.find('span', {'class': 'thread_posts_count'}).text)
 
             date = _decode_date(thread.find('td', {'class': 'thread_date'}).text)
 
@@ -117,6 +132,7 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str):
 
         # print(text, n_stars, board, key, date)
 
+    def save():
         df = DataFrame.from_records(records)
         if content is None:
             df.to_csv('assets/index.tsv', sep = '\t', index = False)
@@ -127,11 +143,13 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str):
         with open(ARHIVACH_CACHE_PATH, encoding = 'utf-8', mode = 'r') as file:
             page = file.read()
         handle_page(page)
+
+        save()
     else:
         i = 0
         offset = start
 
-        pbar = tqdm(total = start / ARHIVACH_INCREMENT if n_top is None else n_top)
+        pbar = tqdm(total = start / step if n_top is None else n_top)
 
         while (n_top is None or i < n_top) and (offset >= 0):
             response = None
@@ -146,17 +164,20 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str):
                 #     raise ValueError(f'Inacceptable status code: {code}')
 
             handle_page(response.text)
+            # save()
 
             i += 1
-            offset -= 25
+            offset -= step
             pbar.update()
 
             # if debug:
             #     with open(ARHIVACH_CACHE_PATH, encoding = 'utf-8', mode = 'w') as file:
             #         file.write(page)
 
+        save()
+
         print('To continue, run command:')
-        print(f'python -m much filter -s {offset} -i assets/index.tsv')
+        print(f'python -m much filter -t {step} -s {offset + step} -i {index} -n {n_top}')
 
 
 @main.command()

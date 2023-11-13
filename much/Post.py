@@ -12,11 +12,21 @@ OP_TEMPLATE = re.compile(r'\(OP\)>?')
 EMPTY = ''
 MIN_POST_LENGTH = 0
 
+MENTION_TEMPLATE = re.compile('>>([0-9]+)')
 POST_ID_TEMPLATE = re.compile('m[0-9]{4,}')
 
 
 def post_id_to_int(post_id: str):
     return int(post_id[1:])
+
+
+def parse_mention(mention: BeautifulSoup):
+    match = MENTION_TEMPLATE.fullmatch(mention.text)
+
+    if match is None:
+        return None
+
+    return int(match.group(1))
 
 
 class Post:
@@ -71,10 +81,19 @@ class Post:
 
         # print(html)
 
-        mentions = None if html is None else html.find_all('a', {'class': 'post-reply-link'})
+        # mentions = None if html is None else html.find_all('a', {'class': 'post-reply-link'})
+        # if mentions is not None:
+        #     mentions = [int(mention['data-num']) for mention in mentions]
 
-        if mentions is not None:
-            mentions = [int(mention['data-num']) for mention in mentions]
+        if html is None:
+            mentions = None
+        else:
+            mentions = []
+
+            for link in html.find_all('a'):
+                mention = parse_mention(link)
+                if mention is not None:
+                    mentions.append(mention)
 
         # for mention in html.find('div', id=f'refmap-{key}').find_all('a', {'class': 'post-reply-link'}):
         #     print(mention['data-num'])
