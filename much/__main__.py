@@ -164,7 +164,7 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int)
                 #     raise ValueError(f'Inacceptable status code: {code}')
 
             handle_page(response.text)
-            # save()
+            save()
 
             i += 1
             offset -= step
@@ -174,7 +174,7 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int)
             #     with open(ARHIVACH_CACHE_PATH, encoding = 'utf-8', mode = 'w') as file:
             #         file.write(page)
 
-        save()
+        # save()
 
         print('To continue, run command:')
         print(f'python -m much filter -t {step} -s {offset + step} -i {index} -n {n_top}')
