@@ -177,7 +177,7 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int)
         # save()
 
         print('To continue, run command:')
-        print(f'python -m much filter -t {step} -s {offset + step} -i {index} -n {n_top}')
+        print(f'python -m much filter -t {step} -i {index} -n {n_top} -s {offset + step}')
 
 
 @main.command()
