@@ -1,7 +1,7 @@
 from traceback import print_exc
 
 from requests import get
-from requests.exceptions import SSLError, ConnectionError
+from requests.exceptions import SSLError, ConnectionError, ChunkedEncodingError
 from dataclasses import dataclass
 from time import sleep
 
@@ -86,7 +86,7 @@ class Fetcher:
             while response is None:
                 try:
                     response = get(url)
-                except (SSLError, ConnectionError):
+                except (SSLError, ConnectionError, ChunkedEncodingError):
                     print_exc()
                     print(f'Error when fetching {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
                     sleep(SSL_ERROR_DELAY)

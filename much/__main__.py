@@ -106,7 +106,7 @@ def pull(url: str, path: str):
 
 
 ROOT = 'https://2ch.hk'
-PAGE_TEMPLATE = f'{ROOT}/b/arch/{{id}}.html'
+PAGE_TEMPLATE = f'{ROOT}/{{board}}/arch/{{id}}.html'
 
 PATH = '../batch/batch'
 INDEX = '../batch/index.tsv'
@@ -128,11 +128,12 @@ def expand_title(title: str, topics: [Topic]):
 @option('--path', '-p', type = str, help = 'path to the directory which will contain pulled files', default = PATH)
 @option('--index', '-i', type = str, help = 'path to the file with pulled files index', default = INDEX)
 @option('--skip-fetched', '-s', is_flag = True, help = 'skip posts, for which corresponding files already exist')
-def fetch(page: int, path: str, index: str, skip_fetched: bool):
+@option('--board', '-b', type = str, help = 'board id from which to pull archived entries', default = 'b')
+def fetch(page: int, path: str, index: str, skip_fetched: bool, board: str):
     if not os.path.isdir(path):
         os.makedirs(path)
 
-    url = PAGE_TEMPLATE.format(id = page)
+    url = PAGE_TEMPLATE.format(board = board, id = page)
     # print(url)
     response = get(url)
 
@@ -222,7 +223,8 @@ def star(thread_id: int, name: str, source_path: str, destination_path: str):
 @main.command()
 @argument('thread-id', type = int)
 @option('--index', '-i', type = str, default = INDEX)
-def link(thread_id: int, index: str):
+@option('--board', '-b', type = str, default = 'b')
+def link(thread_id: int, index: str, board: str):
     index = read_csv(index, sep = '\t')
 
     items = index[index.thread == thread_id]
@@ -235,7 +237,7 @@ def link(thread_id: int, index: str):
 
     record = items.iloc[0].to_dict()
 
-    print(f'https://2ch.hk/b/arch/{"-".join(record["date"].split("-")[::-1])}/res/{record["thread"]}.html')
+    print(f'https://2ch.hk/{board}/arch/{"-".join(record["date"].split("-")[::-1])}/res/{record["thread"]}.html')
 
 
 
