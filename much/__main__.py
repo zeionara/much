@@ -9,6 +9,7 @@ from requests import get
 from bs4 import BeautifulSoup
 from pandas import DataFrame, read_csv, concat
 from tqdm import tqdm
+from requests.exceptions import ConnectionError
 
 from .Fetcher import Fetcher, Topic
 from .Exporter import Exporter, Format
@@ -22,6 +23,7 @@ def main():
 
 
 THREAD_URL = 'https://2ch.hk/b/res/{thread}.html'
+ARHIVACH_THREAD_URL = 'http://arhivach.top/thread/{thread}'
 ARHIVACH_CACHE_PATH = 'assets/cache.html'
 
 BOARD_NAME_TEMLATE = re.compile('/[a-zA-Z0-9]+/')
@@ -43,7 +45,7 @@ def _get_board_name(thread: BeautifulSoup):
 
 def _decode_date(date: str):
     try:
-        day, month, year = date.split(' ')
+        day, month, year = normalize(date).split(SPACE)
     except ValueError:
         print(f'Can\'t decode date: {date}')
         return date
@@ -76,14 +78,18 @@ def _decode_date(date: str):
         case _:
             raise ValueError(f"Can't infer month from date: {date}")
 
-    return f'{int(day):02d}-{decoded_month:02d}-{int(year):04d}'
+    try:
+        return f'{int(day):02d}-{decoded_month:02d}-{int(year):04d}'
+    except ValueError:
+        print(f'Can\'t decode date: {date}')
+        return date
 
 
 TIMEOUT = 3600
 
 
 @main.command()
-@argument('url', type = str, default = 'https://arhivach.top/index/{offset}/')
+@argument('url', type = str, default = 'http://arhivach.top/index/{offset}/')
 @option('--start', '-s', type = int, default = 935475)
 @option('--debug', '-d', is_flag = True)
 @option('--n-top', '-n', type = int, default = None)
@@ -157,7 +163,10 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int)
             while response is None or response.status_code != 200 or (len(response.text) < 1):
                 # try:
 
-                response = get(url.format(offset = offset), timeout = TIMEOUT)
+                try:
+                    response = get(url.format(offset = offset), timeout = TIMEOUT)
+                except ConnectionError:
+                    response = None
                 # code = response.status_code
 
                 # if (code := response.status_code) != 200:
@@ -280,6 +289,65 @@ def expand_title(title: str, topics: [Topic]):
             return match
 
     return title
+
+
+BATCH_FOLDER_NAME = '{first:08d}-{last:08d}'
+
+
+@main.command()
+@option('--path', '-p', type = str, help = 'path to the directory which will contain pulled files', default = 'threads')
+@option('--index', '-i', type = str, help = 'path to the file with pulled files indes', default = 'index.tsv')
+@option('--batch-size', '-b', type = int, help = 'how many threads to put in a folder', default = 10000)
+def grab(path: str, index: str, batch_size: int):
+    if not os.path.isdir(path):
+        os.makedirs(path)
+
+    df = read_csv(index, sep = '\t')
+
+    fetcher = Fetcher()
+    exporter = Exporter()
+
+    offset = 0
+    batch_max_count = offset + batch_size - 1
+    batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+    batch_folder_path = os.path.join(path, batch_folder_name)
+
+    if not os.path.isdir(batch_folder_path):
+        os.makedirs(batch_folder_path)
+
+    pbar = tqdm(total = df.shape[0])
+
+    for i, row in df.iterrows():
+        thread = row['thread']
+
+        if i > batch_max_count:
+            offset = batch_max_count + 1
+            batch_max_count = offset + batch_size - 1
+            batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+            batch_folder_path = os.path.join(path, batch_folder_name)
+
+            if not os.path.isdir(batch_folder_path):
+                os.makedirs(batch_folder_path)
+
+        thread_path = os.path.join(batch_folder_path, f'{thread}.txt')
+
+        url = ARHIVACH_THREAD_URL.format(thread = thread)
+
+        if os.path.isfile(thread_path):
+            pbar.update()
+            continue
+
+        fetched = False
+
+        while not fetched:
+            try:
+                exporter.export(fetcher.fetch(url = url), Format.TXT, path = thread_path)
+                fetched = True
+            except ConnectionError:
+                continue
+
+        pbar.update()
+
 
 @main.command()
 @argument('page', type = int)
