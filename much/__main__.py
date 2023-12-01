@@ -141,9 +141,9 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int)
     def save():
         df = DataFrame.from_records(records)
         if content is None:
-            df.to_csv('assets/index.tsv', sep = '\t', index = False)
+            df.to_csv(index, sep = '\t', index = False)
         else:
-            concat([content, df]).to_csv('assets/index.tsv', sep = '\t', index = False)
+            concat([content, df]).to_csv(index, sep = '\t', index = False)
 
     if os.path.isfile(ARHIVACH_CACHE_PATH) and debug:
         with open(ARHIVACH_CACHE_PATH, encoding = 'utf-8', mode = 'r') as file:
