@@ -200,9 +200,10 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int)
 
 @main.command()
 @argument('url', type = str, default = 'https://2ch.hk/b/catalog.json')
-@option('--path', '-p', type = str, default = 'threads/0000-0019')
+@option('--path', '-p', type = str, default = 'threads')
 @option('--index', '-i', type = str, default = 'index.tsv')
-def load(url: str, path: str, index: str):
+@option('--batch-size', '-b', help = 'how many threads to put in a folder', default = 10000)
+def load(url: str, path: str, index: str, batch_size: int):
     last_records_list = read_csv(index, sep = '\t').to_dict(orient = 'records') if os.path.isfile(index) else None
     last_records = None if last_records_list is None else {
         item['thread']: item
@@ -221,25 +222,74 @@ def load(url: str, path: str, index: str):
     records_list = []
     records = {}
 
+    offset = 0
+    batch_max_count = offset + batch_size - 1
+
+    while True:
+        batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+        batch_folder_path = os.path.join(path, batch_folder_name)
+        batch_folder_size = None
+
+        if not os.path.isdir(batch_folder_path):
+            os.makedirs(batch_folder_path)
+            batch_folder_size = 0
+        else:
+            batch_folder_size = len([name for name in os.listdir(batch_folder_path)])
+
+            if batch_folder_size < batch_size:
+                break
+            else:
+                offset = batch_max_count + 1
+                batch_max_count = offset + batch_size - 1
+
     fetcher = Fetcher()
     exporter = Exporter()
 
     for thread in tqdm(json['threads']):
         day, month, year = thread['date'].split(' ')[0].split('/')
 
+        thread_id = thread['num']
+
+        last_thread_path = None
+        last_batch_folder_name = None
+        if last_records is not None and (last_record := last_records.get(thread_id)) is not None:
+            last_thread_path = os.path.join(path, last_record['folder'], f'{thread_id}.txt')
+            last_batch_folder_name = last_record['folder']
+
+        if last_thread_path is None and batch_folder_size >= batch_size:
+            offset = batch_max_count + 1
+            batch_max_count = offset + batch_size - 1
+            batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+            batch_folder_path = os.path.join(path, batch_folder_name)
+
+            if os.path.isdir(batch_folder_path):
+                raise ValueError(f'Folder {batch_folder_path} already exists')
+
+            os.makedirs(batch_folder_path)
+            batch_folder_size = 0
+
+        # print(thread_id, last_thread_path, last_batch_folder_name)
+
         records_list.append(
             record := {
-                'thread': (thread_id := thread['num']),
+                'thread': thread_id,
                 'date': f'{day}-{month}-20{year}',
-                'path': path.replace('../', ''),
+                # 'path': path.replace('../', ''),
                 'title': Post.from_body(BeautifulSoup(thread['comment'], 'html.parser'))[1].text,
+                'folder': batch_folder_name if last_batch_folder_name is None else last_batch_folder_name,
                 'open': True
             }
         )
 
         # try:
-        exporter.export(fetcher.fetch(thread_url := THREAD_URL.format(thread = thread_id)), format = Format.TXT, path = os.path.join(path, f'{thread_id}.txt'))
+        exporter.export(
+            fetcher.fetch(THREAD_URL.format(thread = thread_id)),
+            format = Format.TXT,
+            path = os.path.join(batch_folder_path, f'{thread_id}.txt') if last_thread_path is None else last_thread_path
+        )
         records[thread_id] = record
+        if last_thread_path is None:
+            batch_folder_size += 1
         # except TypeError:
         #     print(f'Cant process url {thread_url}. Skipping...')
 
