@@ -71,6 +71,10 @@ class Post:
         if len(text) < MIN_POST_LENGTH:
             return None, None
 
+        # if key == 52234659:
+        #     print(body)
+        #     print(html)
+
         if key is None:
             try:
                 key = None if body is None else post_id_to_int(body['id'])

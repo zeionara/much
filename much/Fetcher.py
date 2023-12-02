@@ -1,5 +1,5 @@
 from requests import get
-from requests.exceptions import SSLError
+from requests.exceptions import SSLError, ConnectionError
 from dataclasses import dataclass
 from time import sleep
 
@@ -83,13 +83,17 @@ class Fetcher:
 
         response = None
 
-        while response is None:
+        while response is None or response.status_code != 200 or (len(response.text) < 1):
             try:
                 response = get(url)
             except SSLError:
                 print(f'SSLError when fetching {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
                 sleep(SSL_ERROR_DELAY)
                 print(f'Retrying to fetch {url}...')
+            except ConnectionError:
+                print(f'ConnectionError when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
+                sleep(SSL_ERROR_DELAY)
+                print(f'Retrying to fetch url {url}')
 
         page = response.text
 
@@ -107,6 +111,12 @@ class Fetcher:
         for post in sorted(id_to_post.values(), key = lambda post: (post.length, len(post.text)), reverse = True):
 
             if post.id in ids and post.size >= min_post_length:
+
+                # if post.id == 52234659:
+                #     print(post.short_description)
+
+                #     for mention in post.mentions:
+                #         print(mention.short_description)
 
                 comments = []
 
@@ -129,7 +139,8 @@ class Fetcher:
                     )
                 )
 
-                ids.remove(post.id)
+                if post.id in ids:  # might have been removed in append_mentions?
+                    ids.remove(post.id)
 
             if len(ids) < 1:
                 break
