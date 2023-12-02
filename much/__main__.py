@@ -89,6 +89,13 @@ TIMEOUT = 3600
 
 
 @main.command()
+@option('--source', '-s', default = 'assets/index.tsv')
+@option('--destination', '-d', default = 'assets/index.tsv')
+def sort(source: str, destination: str):
+    read_csv(source, sep = '\t').sort_values(by = ['thread']).to_csv(destination, sep = '\t', index = False)
+
+
+@main.command()
 @argument('url', type = str, default = 'http://arhivach.top/index/{offset}/')
 @option('--start', '-s', type = int, default = 935475)
 @option('--debug', '-d', is_flag = True)
