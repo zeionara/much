@@ -116,4 +116,4 @@ class Post:
 
         key = html.get('postid')
 
-        return cls.from_body(body, html, key = None if key is None else int(key))
+        return cls.from_body(body, html, key = None if key is None or len(key) == 0 else int(key))

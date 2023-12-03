@@ -83,7 +83,11 @@ class Fetcher:
 
         response = None
 
-        while response is None or response.status_code != 200 or (len(response.text) < 1):
+        i = 0
+
+        while response is None or ((response.status_code != 200 or (len(response.text) < 1)) and i < 10):
+            i += 1
+
             try:
                 response = get(url)
             except SSLError:
