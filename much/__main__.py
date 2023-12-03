@@ -389,7 +389,7 @@ def grab(path: str, index: str, batch_size: int, verbose: bool):
             if not os.path.isdir(batch_folder_path):
                 os.makedirs(batch_folder_path)
 
-        thread_path = os.path.join(batch_folder_path, f'{thread}.txt')
+        thread_path = os.path.join(batch_folder_path, f'{thread:08d}.txt')
 
         url = ARHIVACH_THREAD_URL.format(thread = thread)
 
