@@ -14,6 +14,7 @@ MIN_POST_LENGTH = 0
 
 MENTION_TEMPLATE = re.compile('>>([0-9]+)')
 POST_ID_TEMPLATE = re.compile('m[0-9]{4,}')
+POST_ID_HEAD_TEMPLATE = re.compile('([0-9]+).*', re.DOTALL)
 
 
 def post_id_to_int(post_id: str):
@@ -27,6 +28,24 @@ def parse_mention(mention: BeautifulSoup):
         return None
 
     return int(match.group(1))
+
+
+def parse_post_id(post_id: str):
+    if post_id is None or len(post_id) < 1:
+        return None
+
+    try:
+        return int(post_id)
+    except ValueError:
+        match = POST_ID_HEAD_TEMPLATE.fullmatch(post_id)
+
+        # if post_id == '169</div>\n\t\t\t\t\t\t\t</div>\n\t\t\t\t\t\t\n\t\t\t\t\n\t\t\t\t\t\t\n\t\t\t\t\t\t\t<div id=':
+        #     print(match)
+
+        if match is None:
+            return None
+
+        return int(match.group(1))
 
 
 class Post:
@@ -116,4 +135,4 @@ class Post:
 
         key = html.get('postid')
 
-        return cls.from_body(body, html, key = None if key is None or len(key) == 0 else int(key))
+        return cls.from_body(body, html, key = parse_post_id(key))

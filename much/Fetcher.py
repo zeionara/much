@@ -34,8 +34,9 @@ class Fetcher:
     def __init__(self):
         pass
 
-    def fetch(self, url: str):
-        # print(f'Pulling data from {url}...')
+    def fetch(self, url: str, verbose: bool = False):
+        if verbose:
+            print(f'Pulling data from {url}...')
 
         id_to_post = {}
         ids = set()

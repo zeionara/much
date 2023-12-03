@@ -357,7 +357,8 @@ BATCH_FOLDER_NAME = '{first:08d}-{last:08d}'
 @option('--path', '-p', type = str, help = 'path to the directory which will contain pulled files', default = 'threads')
 @option('--index', '-i', type = str, help = 'path to the file with pulled files indes', default = 'index.tsv')
 @option('--batch-size', '-b', type = int, help = 'how many threads to put in a folder', default = 10000)
-def grab(path: str, index: str, batch_size: int):
+@option('--verbose', '-v', is_flag = True)
+def grab(path: str, index: str, batch_size: int, verbose: bool):
     if not os.path.isdir(path):
         os.makedirs(path)
 
@@ -400,7 +401,7 @@ def grab(path: str, index: str, batch_size: int):
 
         while not fetched:
             try:
-                exporter.export(fetcher.fetch(url = url), Format.TXT, path = thread_path)
+                exporter.export(fetcher.fetch(url = url, verbose = verbose), Format.TXT, path = thread_path)
                 fetched = True
             except ConnectionError:
                 continue
