@@ -12,7 +12,7 @@ OP_TEMPLATE = re.compile(r'\(OP\)>?')
 EMPTY = ''
 MIN_POST_LENGTH = 0
 
-MENTION_TEMPLATE = re.compile('>>([0-9]+)')
+MENTION_TEMPLATE = re.compile(r'>>([0-9]+)(\s+\(OP\)\s*)?')
 POST_ID_TEMPLATE = re.compile('m[0-9]{4,}')
 POST_ID_HEAD_TEMPLATE = re.compile('([0-9]+).*', re.DOTALL)
 
@@ -114,7 +114,11 @@ class Post:
             mentions = []
 
             for link in html.find_all('a'):
+                # if text.startswith('Найди тян'):
+                #     print(link)
                 mention = parse_mention(link)
+                # if text.startswith('Найди тян'):
+                #     print(mention)
                 if mention is not None:
                     mentions.append(mention)
 

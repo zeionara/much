@@ -50,6 +50,7 @@ class Fetcher:
                 return
 
             try:
+                html = post
                 mentions, post = Post.from_html(post)
             except Exception as e:
                 print(f'Can\'t handle post {url}')
@@ -63,6 +64,11 @@ class Fetcher:
             ids.add(post.id)
 
             id_to_post[post.id] = post
+
+            # if post.text.startswith('Найди тян'):
+            #     print(post)
+            #     print(mentions)
+            #     # print(html)
 
             if mentions is not None:
                 for mention in mentions:
