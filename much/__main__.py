@@ -4,6 +4,8 @@ from pathlib import Path
 from shutil import copyfile, move
 from html import unescape
 from multiprocessing import Pool
+from datetime import datetime, timedelta
+from math import ceil
 
 from click import group, argument, option
 from requests import get
@@ -45,8 +47,15 @@ def _get_board_name(thread: BeautifulSoup):
 
 
 def _decode_date(date: str):
+    normalized = normalize(date).lower()
+
+    if normalized.startswith('сегодн'):
+        return datetime.today().strftime('%d-%m-%Y')
+    elif normalized.startswith('вчера'):
+        return (datetime.today() - timedelta(days = 1)).strftime('%d-%m-%Y')
+
     try:
-        day, month, year = normalize(date).split(SPACE)
+        day, month, year = normalized.split(SPACE)
     except ValueError:
         print(f'Can\'t decode date: {date}')
         return date
@@ -163,7 +172,7 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int)
         i = 0
         offset = start
 
-        pbar = tqdm(total = start / step if n_top is None else n_top)
+        pbar = tqdm(total = ceil(start / step) if n_top is None else n_top)
 
         while (n_top is None or i < n_top) and (offset >= 0):
             response = None
