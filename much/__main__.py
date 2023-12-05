@@ -1,7 +1,7 @@
 import re
 import os
 from pathlib import Path
-from shutil import copyfile
+from shutil import copyfile, move
 from html import unescape
 
 from click import group, argument, option
@@ -9,7 +9,7 @@ from requests import get
 from bs4 import BeautifulSoup
 from pandas import DataFrame, read_csv, concat
 from tqdm import tqdm
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError, ChunkedEncodingError
 
 from .Fetcher import Fetcher, Topic
 from .Exporter import Exporter, Format
@@ -172,7 +172,7 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int)
 
                 try:
                     response = get(url.format(offset = offset), timeout = TIMEOUT)
-                except ConnectionError:
+                except (ConnectionError, ChunkedEncodingError):
                     response = None
                 # code = response.status_code
 
@@ -181,7 +181,7 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int)
 
             handle_page(response.text)
 
-            if i % 10 == 0:
+            if i % 100 == 0:
                 save()
 
             i += 1
@@ -334,8 +334,11 @@ def pull(url: str, path: str):
 ROOT = 'https://2ch.hk'
 PAGE_TEMPLATE = f'{ROOT}/b/arch/{{id}}.html'
 
-PATH = '../batch/batch'
-INDEX = '../batch/index.tsv'
+# PATH = '../batch/batch'
+# INDEX = '../batch/index.tsv'
+
+PATH = 'threads'
+INDEX = 'index.tsv'
 
 
 def expand_title(title: str, topics: [Topic]):
@@ -470,10 +473,15 @@ def fetch(page: int, path: str, index: str, skip_fetched: bool):
 
 @main.command()
 @argument('n', type = int, default = 10)
+@option('--root', '-r', type = str, help = 'root folder with threads', default = None)
 @option('--path', '-p', type = str, help = 'path to the directory which will contain pulled files', default = PATH)
 @option('--index', '-i', type = str, help = 'path to the file with pulled files index', default = INDEX)
-def top(n: int, path: str, index: str):
+@option('--skip-missing', '-s', is_flag = True)
+def top(n: int, path: str, index: str, root: str, skip_missing: bool):
     index = read_csv(index, sep = '\t')
+
+    if root is not None:
+        index['path'] = index['folder'].apply(lambda x: os.path.join(root, x))
 
     for folder, file in sorted(
         [
@@ -486,23 +494,42 @@ def top(n: int, path: str, index: str):
     )[:n]:
         thread_id = int(Path(file).stem)
 
+        try:
+            row = index.loc[(index.thread == thread_id) & (index.path == folder)].iloc[0]
+        except IndexError:
+            print(f"-- Can't find thread {thread_id} at {folder} in index")
+            if skip_missing:
+                continue
+            else:
+                raise
+
         print(
             f'{os.stat(file).st_size / 1024:.2f} KB',
             thread_id,
-            index.loc[(index.thread == thread_id) & (index.path == folder)].iloc[0]['title']
+            row['title']
         )
 
 
 @main.command()
 @argument('thread-id', type = int)
 @argument('name', type = str)
-@option('--source-path', '-s', type = str, help = 'path to the directory which will contain pulled files', default = PATH)
+@option('--index', '-i', type = str, default = INDEX)
+@option('--root', '-r', type = str, help = 'root folder with threads', default = None)
 @option('--destination-path', '-d', type = str, help = 'path where the chosen file will be copied with given name', default = 'assets/starred')
-def star(thread_id: int, name: str, source_path: str, destination_path: str):
+def star(thread_id: int, name: str, index: str, root: str, destination_path: str):
     if not os.path.isdir(destination_path):
         os.mkdir(destination_path)
 
-    copyfile(os.path.join(source_path, f'{thread_id}.txt'), os.path.join(destination_path, f'{name}.txt'))
+    index = read_csv(index, sep = '\t')
+
+    row = index.loc[index.thread == thread_id].iloc[0]
+
+    if root is None:
+        thread_path = row['path']
+    else:
+        thread_path = os.path.join(root, row['folder'])
+
+    copyfile(os.path.join(thread_path, f'{thread_id}.txt'), os.path.join(destination_path, f'{name}.txt'))
 
 
 @main.command()
@@ -524,6 +551,30 @@ def link(thread_id: int, index: str):
     print(f'https://2ch.hk/b/arch/{"-".join(record["date"].split("-")[::-1])}/res/{record["thread"]}.html')
 
 
+@main.command()
+@option('--index', '-i', type = str, default = INDEX)
+@option('--path', '-p', type = str, default = PATH)
+@option('--target', '-t', type = str, default = 'orphan')
+def sync(index: str, path: str, target: str):
+    index = read_csv(index, sep = '\t')
+
+    if not os.path.isdir(target):
+        os.makedirs(target)
+
+    for path, _, files in os.walk(path):
+        for file in files:
+            folder = Path(path).stem
+            thread_id = int(Path(file).stem)
+
+            row = index.loc[(index.thread == thread_id) & (index.folder == folder)]
+
+            size = row.shape[0]
+
+            if size > 1:
+                raise ValueError(f'There are multiple threads with id {thread_id} in folder {folder}')
+            if size < 1:
+                print(f'Missing index entry for thread {thread_id} which is {os.stat(file_path := os.path.join(path, file)).st_size / 1024:.2f} Kb large. Moving it to {target}...')
+                move(file_path, os.path.join(target, file))
 
 
 if __name__ == '__main__':
