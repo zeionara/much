@@ -65,11 +65,6 @@ class Fetcher:
 
             id_to_post[post.id] = post
 
-            # if post.text.startswith('Найди тян'):
-            #     print(post)
-            #     print(mentions)
-            #     # print(html)
-
             if mentions is not None:
                 for mention in mentions:
                     if mention in id_to_post:

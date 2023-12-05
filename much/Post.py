@@ -114,11 +114,7 @@ class Post:
             mentions = []
 
             for link in html.find_all('a'):
-                # if text.startswith('Найди тян'):
-                #     print(link)
                 mention = parse_mention(link)
-                # if text.startswith('Найди тян'):
-                #     print(mention)
                 if mention is not None:
                     mentions.append(mention)
 
