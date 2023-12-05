@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from shutil import copyfile, move
 from html import unescape
+from multiprocessing import Pool
 
 from click import group, argument, option
 from requests import get
@@ -356,21 +357,14 @@ def expand_title(title: str, topics: [Topic]):
 BATCH_FOLDER_NAME = '{first:08d}-{last:08d}'
 
 
-@main.command()
-@option('--path', '-p', type = str, help = 'path to the directory which will contain pulled files', default = 'threads')
-@option('--index', '-i', type = str, help = 'path to the file with pulled files indes', default = 'index.tsv')
-@option('--batch-size', '-b', type = int, help = 'how many threads to put in a folder', default = 10000)
-@option('--verbose', '-v', is_flag = True)
-def grab(path: str, index: str, batch_size: int, verbose: bool):
-    if not os.path.isdir(path):
-        os.makedirs(path)
-
-    df = read_csv(index, sep = '\t')
-
+def grab_one(i: int, row: dict, batch_size: int, path: str):
     fetcher = Fetcher()
     exporter = Exporter()
 
-    offset = 0
+    thread = row['thread']
+
+    # if i > batch_max_count:
+    offset = i // batch_size * batch_size
     batch_max_count = offset + batch_size - 1
     batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
     batch_folder_path = os.path.join(path, batch_folder_name)
@@ -378,38 +372,65 @@ def grab(path: str, index: str, batch_size: int, verbose: bool):
     if not os.path.isdir(batch_folder_path):
         os.makedirs(batch_folder_path)
 
-    pbar = tqdm(total = df.shape[0])
+    thread_path = os.path.join(batch_folder_path, f'{thread:08d}.txt')
 
-    for i, row in df.iterrows():
-        thread = row['thread']
+    # if pretend:
+    # print(f'Saving {thread_path}...')
+    # return
+    # pbar.update()
+    # continue
 
-        if i > batch_max_count:
-            offset = batch_max_count + 1
-            batch_max_count = offset + batch_size - 1
-            batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
-            batch_folder_path = os.path.join(path, batch_folder_name)
+    url = ARHIVACH_THREAD_URL.format(thread = thread)
 
-            if not os.path.isdir(batch_folder_path):
-                os.makedirs(batch_folder_path)
+    if os.path.isfile(thread_path):
+        # pbar.update()
+        return
+        # continue
 
-        thread_path = os.path.join(batch_folder_path, f'{thread:08d}.txt')
+    fetched = False
 
-        url = ARHIVACH_THREAD_URL.format(thread = thread)
-
-        if os.path.isfile(thread_path):
-            pbar.update()
+    while not fetched:
+        try:
+            exporter.export(fetcher.fetch(url = url, verbose = False), Format.TXT, path = thread_path)
+            fetched = True
+        except ConnectionError:
             continue
 
-        fetched = False
+    # pbar.update()
 
-        while not fetched:
-            try:
-                exporter.export(fetcher.fetch(url = url, verbose = verbose), Format.TXT, path = thread_path)
-                fetched = True
-            except ConnectionError:
-                continue
 
-        pbar.update()
+@main.command()
+@option('--path', '-p', type = str, help = 'path to the directory which will contain pulled files', default = 'threads')
+@option('--index', '-i', type = str, help = 'path to the file with pulled files indes', default = 'index.tsv')
+@option('--batch-size', '-b', type = int, help = 'how many threads to put in a folder', default = 10000)
+@option('--verbose', '-v', is_flag = True)
+@option('--pretend', '-p', is_flag = True)
+@option('--n-workers', '-n', type = int, default = 8)
+def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n_workers: int):
+    if not os.path.isdir(path):
+        os.makedirs(path)
+
+    df = read_csv(index, sep = '\t')
+
+    # fetcher = Fetcher()
+    # exporter = Exporter()
+
+    # offset = 0
+    # batch_max_count = offset + batch_size - 1
+    # batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+    # batch_folder_path = os.path.join(path, batch_folder_name)
+
+    # if not os.path.isdir(batch_folder_path):
+    #     os.makedirs(batch_folder_path)
+
+    # pbar = tqdm(total = df.shape[0])
+
+    # for i, row in df.iterrows():
+    #     grab_one((i, row, batch_size, path))
+
+    with Pool(processes = n_workers) as pool:
+        # Use pool.starmap to parallelize the loop
+        pool.starmap(grab_one, [(i, row, batch_size, path) for i, row in df.iterrows()])
 
 
 @main.command()
