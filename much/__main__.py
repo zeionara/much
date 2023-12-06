@@ -6,6 +6,7 @@ from html import unescape
 from multiprocessing import Pool
 from datetime import datetime, timedelta
 from math import ceil
+from time import sleep
 
 from click import group, argument, option
 from requests import get
@@ -14,7 +15,7 @@ from pandas import DataFrame, read_csv, concat
 from tqdm import tqdm
 from requests.exceptions import ConnectionError, ChunkedEncodingError
 
-from .Fetcher import Fetcher, Topic
+from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
 from .Post import Post
 from .util import normalize, SPACE
@@ -180,9 +181,14 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int)
             while response is None or response.status_code != 200 or (len(response.text) < 1):
                 # try:
 
+                # print(response)
+
                 try:
                     response = get(url.format(offset = offset), timeout = TIMEOUT)
-                except (ConnectionError, ChunkedEncodingError):
+                except (ConnectionError, ChunkedEncodingError) as e:
+                    print(f'Encountered error when fetching page wit offset {offset}: {e}. Waiting for {SSL_ERROR_DELAY} before retrying...')
+                    sleep(SSL_ERROR_DELAY)
+                    print('Retrying...')
                     response = None
                 # code = response.status_code
 
