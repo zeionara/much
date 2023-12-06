@@ -385,7 +385,10 @@ def grab_one(i: int, row: dict, batch_size: int, path: str):
     batch_folder_path = os.path.join(path, batch_folder_name)
 
     if not os.path.isdir(batch_folder_path):
-        os.makedirs(batch_folder_path)
+        try:
+            os.makedirs(batch_folder_path)
+        except FileExistsError:
+            pass
 
     thread_path = os.path.join(batch_folder_path, f'{thread:08d}.txt')
 
@@ -397,7 +400,8 @@ def grab_one(i: int, row: dict, batch_size: int, path: str):
 
     url = ARHIVACH_THREAD_URL.format(thread = thread)
 
-    if os.path.isfile(thread_path):
+    if os.path.isfile(thread_path) and os.stat(thread_path).st_size > 0:
+        # print(f'File {thread_path} exists. Not pulling')
         # pbar.update()
         return
         # continue
