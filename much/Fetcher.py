@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from numpy import percentile
 
 from .Post import Post
-from .util import pure_spaces
+from .util import pure_spaces, normalize, make_ordinal
 
 
 POST_SIZE_PERCENTILE = 15
@@ -46,18 +46,17 @@ class Fetcher:
 
         def append_post(post):
             if post is None:
-                print(f'Post is none for url {url}')
-                return
+                # print(f'Post is none for url {url}')
+                return None
 
             try:
-                html = post
                 mentions, post = Post.from_html(post)
-            except Exception as e:
+            except Exception:
                 print(f'Can\'t handle post {url}')
                 raise
 
             if post is None or pure_spaces(post.text):
-                return
+                return False
 
             post_sizes.append(post.size)
 
@@ -71,6 +70,8 @@ class Fetcher:
                         id_to_post[mention].append(post)
                     # else:
                     #     print(f'No mention {mention}')
+
+            return True
 
         def append_mentions(post: Post, comments: list, depth: int = 1):
             for mention in post.mentions:
@@ -87,7 +88,7 @@ class Fetcher:
 
         i = 0
 
-        while response is None or ((response.status_code != 200 or (len(response.text) < 1)) and i < 10):
+        while response is None or ((response.status_code != 200 or (len(response.text) < 1))):
             i += 1
 
             try:
@@ -105,11 +106,26 @@ class Fetcher:
                 sleep(SSL_ERROR_DELAY)
                 print(f'Retrying to fetch url {url}')
 
-        page = response.text
+            page = response.text
+            soup = BeautifulSoup(page, features = 'html.parser')
 
-        soup = BeautifulSoup(page, features = 'html.parser')
+            if append_post(soup.find('div', {'class': ('post', 'oppost')})) is None:
+                response = None
 
-        append_post(soup.find('div', {'class': ('post', 'oppost')}))
+                found_keyword = False
+                for keyword in ('<h3>Здесь ничего нет.</h3>', ):
+                    if keyword in page:
+                        # print(f'Skipping because the page contains {keyword}')
+                        found_keyword = True
+                        break
+
+                if found_keyword:
+                    print(f"🔵 Can't find oppost in '{normalize(page)[:100]}'. Skipping...")
+                    break
+
+                print(f"🔴 Can't find oppost in '{normalize(page)[:100]}'. Waiting for {SSL_ERROR_DELAY} seconds before retrying...")
+                sleep(SSL_ERROR_DELAY)
+                print(f'🟡 Retrying ({make_ordinal(i + 1)} attempt to fetch {url})...')
 
         for post in soup.find_all('div', {'class': ('post', 'reply')}):
             append_post(post)
