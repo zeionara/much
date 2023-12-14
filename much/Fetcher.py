@@ -113,7 +113,7 @@ class Fetcher:
                 response = None
 
                 found_keyword = False
-                for keyword in ('<h3>Здесь ничего нет.</h3>', ):
+                for keyword in ('<h3>Здесь ничего нет.</h3>', '<span class="nf__nf">404</span>'):
                     if keyword in page:
                         # print(f'Skipping because the page contains {keyword}')
                         found_keyword = True
