@@ -13,6 +13,14 @@ from .util import pure_spaces, normalize, make_ordinal
 POST_SIZE_PERCENTILE = 15
 SSL_ERROR_DELAY = 1  # seconds
 
+# BLOCKED_KEYWORD = (
+#     '<h3>Заблокировано по требованию Роскомнадзора.<br><p style="font-size:50%">'
+#     'P.S. Используйте <a href="http://arhivachqqqvwqcotafhk4ks2he56seuwcshpayrm5myeq45vlff44yd.onion/thread/860">Tor версию</a>.</p></h3>'
+# )
+BLOCKED_KEYWORD = '<h3>Заблокировано по требованию Роскомнадзора.<br><p style="font-size:50%">P.S. Используйте'
+BLOCKED_KEYWORD_2 = '<h3>Заблокировано по жалобам третьих лиц.<br><p style="font-size:50%">P.S. Используйте'
+TOO_LARGE = '<h3>Тред слишком большой для отображения на одной странице.<br>Мы работает над решением.'
+
 
 @dataclass
 class Topic:
@@ -113,7 +121,17 @@ class Fetcher:
                 response = None
 
                 found_keyword = False
-                for keyword in ('<h3>Здесь ничего нет.</h3>', '<span class="nf__nf">404</span>'):
+                for keyword in (
+                    '<h3>Здесь ничего нет.</h3>',
+                    '<span class="nf__nf">404</span>',
+                    BLOCKED_KEYWORD,
+                    '<h3>Тред скрыт. Скорее всего, он содержит нежелательный контент.</h3>', '<i class="icon-refresh icon-white"></i>',
+                    BLOCKED_KEYWORD_2,
+                    TOO_LARGE
+                ):
+                    # if keyword == BLOCKED_KEYWORD:
+                    #     print(BLOCKED_KEYWORD)
+                    #     print(page)
                     if keyword in page:
                         # print(f'Skipping because the page contains {keyword}')
                         found_keyword = True
