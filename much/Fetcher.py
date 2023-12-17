@@ -100,7 +100,7 @@ class Fetcher:
             i += 1
 
             try:
-                response = get(url)
+                response = get(url, timeout = 60)
             except SSLError:
                 print(f'Encountered SSLError when fetching {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
                 sleep(SSL_ERROR_DELAY)

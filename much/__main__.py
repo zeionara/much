@@ -372,7 +372,7 @@ def expand_title(title: str, topics: [Topic]):
 BATCH_FOLDER_NAME = '{first:08d}-{last:08d}'
 
 
-def grab_one(i: int, row: dict, batch_size: int, path: str):
+def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool):
     fetcher = Fetcher()
     exporter = Exporter()
 
@@ -400,7 +400,7 @@ def grab_one(i: int, row: dict, batch_size: int, path: str):
 
     url = ARHIVACH_THREAD_URL.format(thread = thread)
 
-    if os.path.isfile(thread_path) and os.stat(thread_path).st_size > 0:
+    if os.path.isfile(thread_path) and (skip_empty or os.stat(thread_path).st_size > 0):
         # print(f'File {thread_path} exists. Not pulling')
         # pbar.update()
         return
@@ -425,7 +425,8 @@ def grab_one(i: int, row: dict, batch_size: int, path: str):
 @option('--verbose', '-v', is_flag = True)
 @option('--pretend', '-p', is_flag = True)
 @option('--n-workers', '-n', type = int, default = 8)
-def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n_workers: int):
+@option('--skip-empty', '-s', is_flag = True)
+def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n_workers: int, skip_empty: bool):
     if not os.path.isdir(path):
         os.makedirs(path)
 
@@ -449,7 +450,7 @@ def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n
 
     with Pool(processes = n_workers) as pool:
         # Use pool.starmap to parallelize the loop
-        pool.starmap(grab_one, [(i, row, batch_size, path) for i, row in df.iterrows()])
+        pool.starmap(grab_one, [(i, row, batch_size, path, skip_empty) for i, row in df.iterrows()])
 
 
 @main.command()
