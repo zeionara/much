@@ -6,7 +6,7 @@ from time import sleep
 from bs4 import BeautifulSoup
 from numpy import percentile
 
-from .Post import Post
+from .Post import Post, MissingPostIdException
 from .util import pure_spaces, normalize, make_ordinal
 
 
@@ -59,6 +59,8 @@ class Fetcher:
 
             try:
                 mentions, post = Post.from_html(post)
+            except MissingPostIdException:
+                return False
             except Exception:
                 print(f'Can\'t handle post {url}')
                 raise

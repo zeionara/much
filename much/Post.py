@@ -17,6 +17,10 @@ POST_ID_TEMPLATE = re.compile('m[0-9]{4,}')
 POST_ID_HEAD_TEMPLATE = re.compile('([0-9]+).*', re.DOTALL)
 
 
+class MissingPostIdException(Exception):
+    pass
+
+
 def post_id_to_int(post_id: str):
     return int(post_id[1:])
 
@@ -100,7 +104,10 @@ class Post:
             except KeyError:
                 key = None
             except ValueError:
-                key = post_id_to_int(POST_ID_TEMPLATE.findall(str(body))[0])
+                id_matches = POST_ID_TEMPLATE.findall(str(body))
+                if len(id_matches) < 1:
+                    raise MissingPostIdException(f'{id_matches}')
+                key = post_id_to_int(id_matches[0])
 
         # print(html)
 

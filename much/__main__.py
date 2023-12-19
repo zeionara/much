@@ -27,7 +27,7 @@ def main():
 
 
 THREAD_URL = 'https://2ch.hk/b/res/{thread}.html'
-ARHIVACH_THREAD_URL = 'http://arhivach.top/thread/{thread}'
+ARHIVACH_THREAD_URL = '{protocol}://arhivach.top/thread/{thread}'
 ARHIVACH_CACHE_PATH = 'assets/cache.html'
 
 BOARD_NAME_TEMLATE = re.compile('/[a-zA-Z0-9]+/')
@@ -372,7 +372,7 @@ def expand_title(title: str, topics: [Topic]):
 BATCH_FOLDER_NAME = '{first:08d}-{last:08d}'
 
 
-def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool):
+def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, protocol: str):
     fetcher = Fetcher()
     exporter = Exporter()
 
@@ -398,7 +398,7 @@ def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool):
     # pbar.update()
     # continue
 
-    url = ARHIVACH_THREAD_URL.format(thread = thread)
+    url = ARHIVACH_THREAD_URL.format(thread = thread, protocol = protocol)
 
     if os.path.isfile(thread_path) and (skip_empty or os.stat(thread_path).st_size > 0):
         # print(f'File {thread_path} exists. Not pulling')
@@ -423,10 +423,11 @@ def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool):
 @option('--index', '-i', type = str, help = 'path to the file with pulled files indes', default = 'index.tsv')
 @option('--batch-size', '-b', type = int, help = 'how many threads to put in a folder', default = 10000)
 @option('--verbose', '-v', is_flag = True)
-@option('--pretend', '-p', is_flag = True)
+@option('--pretend', '-e', is_flag = True)
 @option('--n-workers', '-n', type = int, default = 8)
 @option('--skip-empty', '-s', is_flag = True)
-def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n_workers: int, skip_empty: bool):
+@option('--protocol', '-r', type = str, default = 'http')
+def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n_workers: int, skip_empty: bool, protocol: str):
     if not os.path.isdir(path):
         os.makedirs(path)
 
@@ -450,7 +451,7 @@ def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n
 
     with Pool(processes = n_workers) as pool:
         # Use pool.starmap to parallelize the loop
-        pool.starmap(grab_one, [(i, row, batch_size, path, skip_empty) for i, row in df.iterrows()])
+        pool.starmap(grab_one, [(i, row, batch_size, path, skip_empty, protocol) for i, row in df.iterrows()])
 
 
 @main.command()
