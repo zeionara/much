@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 from pandas import DataFrame, read_csv, concat
 from tqdm import tqdm
 from requests.exceptions import ConnectionError, ChunkedEncodingError
+from flask import Flask
 
 from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
@@ -616,6 +617,24 @@ def sync(index: str, path: str, target: str):
             if size < 1:
                 print(f'Missing index entry for thread {thread_id} which is {os.stat(file_path := os.path.join(path, file)).st_size / 1024:.2f} Kb large. Moving it to {target}...')
                 move(file_path, os.path.join(target, file))
+
+
+@main.command()
+@option('--port', '-p', type = int, default = 1719)
+@option('--host', '-h', type = str, default = '0.0.0.0')
+@option('--timeout', '-t', type = int, default = 60)
+def start_proxy(host: str, port: int, timeout: int):
+    app = Flask(__name__)
+
+    @app.get('/thread/<thread>')
+    def get_thread(thread: int):
+        response = get(ARHIVACH_THREAD_URL.format(thread = thread), timeout = timeout)
+
+        return response.content, response.status_code
+
+    app.run(host = host, port = port)
+
+    print(f'Starting proxy at {host}:{port}')
 
 
 if __name__ == '__main__':
