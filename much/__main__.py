@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from shutil import copyfile, move
 from html import unescape
-from multiprocessing import Pool
+from multiprocessing import Pool, Lock
 from datetime import datetime, timedelta
 from math import ceil
 from time import sleep
@@ -32,6 +32,8 @@ ARHIVACH_THREAD_URL = '{protocol}://arhivach.top/thread/{thread}'
 ARHIVACH_CACHE_PATH = 'assets/cache.html'
 
 BOARD_NAME_TEMLATE = re.compile('/[a-zA-Z0-9]+/')
+
+empty_list_lock = Lock()
 
 
 def _get_board_name(thread: BeautifulSoup):
@@ -373,7 +375,7 @@ def expand_title(title: str, topics: [Topic]):
 BATCH_FOLDER_NAME = '{first:08d}-{last:08d}'
 
 
-def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, protocol: str):
+def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, protocol: str, empty_list_path: str, empty_threads: list[int]):
     fetcher = Fetcher()
     exporter = Exporter()
 
@@ -401,7 +403,7 @@ def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, pr
 
     url = ARHIVACH_THREAD_URL.format(thread = thread, protocol = protocol)
 
-    if os.path.isfile(thread_path) and (skip_empty or os.stat(thread_path).st_size > 0):
+    if os.path.isfile(thread_path) and (skip_empty or thread in empty_threads or os.stat(thread_path).st_size > 0):
         # print(f'File {thread_path} exists. Not pulling')
         # pbar.update()
         return
@@ -412,6 +414,12 @@ def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, pr
     while not fetched:
         try:
             exporter.export(fetcher.fetch(url = url, verbose = False), Format.TXT, path = thread_path)
+
+            if os.stat(thread_path).st_size < 1:
+                with empty_list_lock:
+                    with open(empty_list_path, mode = 'a', encoding = 'utf-8') as file:
+                        file.write(f'{thread}')
+
             fetched = True
         except ConnectionError:
             continue
@@ -428,11 +436,18 @@ def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, pr
 @option('--n-workers', '-n', type = int, default = 8)
 @option('--skip-empty', '-s', is_flag = True)
 @option('--protocol', '-r', type = str, default = 'http')
-def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n_workers: int, skip_empty: bool, protocol: str):
+@option('--empty-list-path', '-y', type = str, default = 'empty-threads.txt')
+def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n_workers: int, skip_empty: bool, protocol: str, empty_list_path: str):
     if not os.path.isdir(path):
         os.makedirs(path)
 
     df = read_csv(index, sep = '\t')
+
+    if os.path.isfile(empty_list_path):
+        with open(empty_list_path, 'r', encoding = 'utf-8') as file:
+            empty_threads = [int(line[:-1]) for line in file.readlines()]
+    else:
+        empty_threads = tuple()
 
     # fetcher = Fetcher()
     # exporter = Exporter()
@@ -452,7 +467,7 @@ def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n
 
     with Pool(processes = n_workers) as pool:
         # Use pool.starmap to parallelize the loop
-        pool.starmap(grab_one, [(i, row, batch_size, path, skip_empty, protocol) for i, row in df.iterrows()])
+        pool.starmap(grab_one, [(i, row, batch_size, path, skip_empty, protocol, empty_list_path, empty_threads) for i, row in df.iterrows()])
 
 
 @main.command()
