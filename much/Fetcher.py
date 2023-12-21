@@ -1,5 +1,5 @@
 from requests import get
-from requests.exceptions import SSLError, ConnectionError, ChunkedEncodingError
+from requests.exceptions import SSLError, ConnectionError, ChunkedEncodingError, ReadTimeout
 from dataclasses import dataclass
 from time import sleep
 
@@ -107,14 +107,28 @@ class Fetcher:
                 print(f'Encountered SSLError when fetching {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
                 sleep(SSL_ERROR_DELAY)
                 print(f'Retrying to fetch {url}...')
+                continue
             except ConnectionError:
                 print(f'Encountered ConnectionError when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
                 sleep(SSL_ERROR_DELAY)
                 print(f'Retrying to fetch url {url}')
+                continue
             except ChunkedEncodingError:
                 print(f'Encountered ChunkedEncodingError when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
                 sleep(SSL_ERROR_DELAY)
                 print(f'Retrying to fetch url {url}')
+                continue
+            except ReadTimeout:
+                print(f'Encountered ReadTimeout when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
+                sleep(SSL_ERROR_DELAY)
+                print(f'Retrying to fetch url {url}')
+                continue
+
+            if response is None:
+                print(f'Got none response when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
+                sleep(SSL_ERROR_DELAY)
+                print(f'Retrying to fetch url {url}')
+                continue
 
             page = response.text
             soup = BeautifulSoup(page, features = 'html.parser')

@@ -28,7 +28,8 @@ def main():
 
 
 THREAD_URL = 'https://2ch.hk/b/res/{thread}.html'
-ARHIVACH_THREAD_URL = '{protocol}://arhivach.top/thread/{thread}'
+# ARHIVACH_THREAD_URL = 'http://arhivach.top/thread/{thread}'
+ARHIVACH_THREAD_URL = '{protocol}://localhost:8080/thread/{thread}'
 ARHIVACH_CACHE_PATH = 'assets/cache.html'
 
 BOARD_NAME_TEMLATE = re.compile('/[a-zA-Z0-9]+/')
