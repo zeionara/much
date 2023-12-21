@@ -419,7 +419,7 @@ def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, pr
             if os.stat(thread_path).st_size < 1:
                 with empty_list_lock:
                     with open(empty_list_path, mode = 'a', encoding = 'utf-8') as file:
-                        file.write(f'{thread}')
+                        file.write(f'{thread}\n')
 
             fetched = True
         except ConnectionError:
@@ -446,7 +446,7 @@ def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n
 
     if os.path.isfile(empty_list_path):
         with open(empty_list_path, 'r', encoding = 'utf-8') as file:
-            empty_threads = [int(line[:-1]) for line in file.readlines()]
+            empty_threads = [int(line[:-1]) for line in file.readlines() if len(line) > 0]
     else:
         empty_threads = tuple()
 
