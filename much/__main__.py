@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from math import ceil
 from time import sleep
 
-from click import group, argument, option
+from click import group, argument, option, Choice
 from requests import get
 from bs4 import BeautifulSoup
 from pandas import DataFrame, read_csv, concat
@@ -28,8 +28,10 @@ def main():
 
 
 THREAD_URL = 'https://2ch.hk/b/res/{thread}.html'
-# ARHIVACH_THREAD_URL = 'http://arhivach.top/thread/{thread}'
+# ARHIVACH_THREAD_URL = '{protocol}://arhivach.top/thread/{thread}'
+# ARHIVACH_INDEX_URL = '{protocol}://arhivach.top/index/{offset}'
 ARHIVACH_THREAD_URL = '{protocol}://localhost:8080/thread/{thread}'
+ARHIVACH_INDEX_URL = '{protocol}://localhost:8080/index/{offset}/'
 ARHIVACH_CACHE_PATH = 'assets/cache.html'
 
 BOARD_NAME_TEMLATE = re.compile('/[a-zA-Z0-9]+/')
@@ -111,13 +113,15 @@ def sort(source: str, destination: str):
 
 
 @main.command()
-@argument('url', type = str, default = 'http://arhivach.top/index/{offset}/')
+# @argument('url', type = str, default = 'http://arhivach.top/index/{offset}/')
+@argument('url', type = str, default = ARHIVACH_INDEX_URL)
 @option('--start', '-s', type = int, default = 935475)
 @option('--debug', '-d', is_flag = True)
 @option('--n-top', '-n', type = int, default = None)
 @option('--index', '-i', type = str, default = None)
 @option('--step', '-t', type = int, default = 25)
-def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int):
+@option('--protocol', '-r', type = Choice(('http', 'https'), case_sensitive = True), default = 'http')
+def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int, protocol: str):
     records = []
 
     if index is None:
@@ -188,7 +192,7 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int)
                 # print(response)
 
                 try:
-                    response = get(url.format(offset = offset), timeout = TIMEOUT)
+                    response = get(url.format(protocol = protocol, offset = offset), timeout = TIMEOUT)
                 except (ConnectionError, ChunkedEncodingError) as e:
                     print(f'Encountered error when fetching page wit offset {offset}: {e}. Waiting for {SSL_ERROR_DELAY} before retrying...')
                     sleep(SSL_ERROR_DELAY)
@@ -640,12 +644,22 @@ def sync(index: str, path: str, target: str):
 @option('--port', '-p', type = int, default = 1719)
 @option('--host', '-h', type = str, default = '0.0.0.0')
 @option('--timeout', '-t', type = int, default = 60)
-def start_proxy(host: str, port: int, timeout: int):
+@option('--protocol', '-r', type = Choice(('http', 'https'), case_sensitive = True), default = 'http')
+def start_proxy(host: str, port: int, timeout: int, protocol: str):
     app = Flask(__name__)
+
+    _ARHIVACH_THREAD_URL = f'{protocol}://arhivach.top/thread/{{thread}}'
+    _ARHIVACH_INDEX_URL = f'{protocol}://arhivach.top/index/{{offset}}'
 
     @app.get('/thread/<thread>')
     def get_thread(thread: int):
-        response = get(ARHIVACH_THREAD_URL.format(thread = thread), timeout = timeout)
+        response = get(_ARHIVACH_THREAD_URL.format(thread = thread), timeout = timeout)
+
+        return response.content, response.status_code
+
+    @app.get('/index/<offset>')
+    def get_index(offset: int):
+        response = get(_ARHIVACH_INDEX_URL.format(offset = offset), timeout = timeout)
 
         return response.content, response.status_code
 
