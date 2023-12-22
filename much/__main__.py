@@ -659,7 +659,9 @@ def start_proxy(host: str, port: int, timeout: int, protocol: str):
 
     @app.get('/index/<offset>')
     def get_index(offset: int):
-        response = get(_ARHIVACH_INDEX_URL.format(offset = offset), timeout = timeout)
+        _url = _ARHIVACH_INDEX_URL.format(offset = offset)
+        print(f'Pulling url {_url}')
+        response = get(_url, timeout = timeout)
 
         return response.content, response.status_code
 
