@@ -31,10 +31,11 @@ THREAD_URL = 'https://2ch.hk/b/res/{thread}.html'
 # ARHIVACH_THREAD_URL = '{protocol}://arhivach.top/thread/{thread}'
 # ARHIVACH_INDEX_URL = '{protocol}://arhivach.top/index/{offset}'
 ARHIVACH_THREAD_URL = '{protocol}://localhost:8080/thread/{thread}'
-ARHIVACH_INDEX_URL = '{protocol}://localhost:8080/index/{offset}/'
+ARHIVACH_INDEX_URL = '{protocol}://localhost:8080/index/{offset}'
 ARHIVACH_CACHE_PATH = 'assets/cache.html'
 
 BOARD_NAME_TEMLATE = re.compile('/[a-zA-Z0-9]+/')
+TIME_TEMPLATE = re.compile('[0-9]+:[0-9]+')
 
 empty_list_lock = Lock()
 
@@ -98,6 +99,9 @@ def _decode_date(date: str):
     try:
         return f'{int(day):02d}-{decoded_month:02d}-{int(year):04d}'
     except ValueError:
+        if TIME_TEMPLATE.fullmatch(year):
+            return f'{int(day):02d}-{decoded_month:02d}-{datetime.now().year:04d}'
+
         print(f'Can\'t decode date: {date}')
         return date
 
