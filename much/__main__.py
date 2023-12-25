@@ -106,14 +106,46 @@ def _decode_date(date: str):
         return date
 
 
+def make_grabbed_folder_path(i: int, batch_size: int, path: str):
+    offset = i // batch_size * batch_size
+    batch_max_count = offset + batch_size - 1
+    batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+    return os.path.join(path, batch_folder_name)
+
+
 TIMEOUT = 3600
 
 
 @main.command()
-@option('--source', '-s', default = 'assets/index.tsv')
-@option('--destination', '-d', default = 'assets/index.tsv')
-def sort(source: str, destination: str):
-    read_csv(source, sep = '\t').sort_values(by = ['thread']).to_csv(destination, sep = '\t', index = False)
+@option('--source', '-s', default = 'index.tsv')
+@option('--destination', '-d', default = 'index.tsv')
+@option('--batch-size', '-b', help = 'How many threads to put in a folder', default = 10000)
+@option('--threads', '-t', help = 'Path to the root folder with threads', default = 'threads')
+@option('--pretend', '-p', is_flag = True)
+def sort(source: str, destination: str, batch_size: int, threads: str, pretend: bool):
+    df = read_csv(source, sep = '\t')
+    df['folder'] = df.index.to_series().apply(lambda i: make_grabbed_folder_path(i, batch_size, threads))
+
+    df.sort_values(by = ['thread'], inplace = True)
+
+    for i, row in df.iterrows():
+        folder_after_sorting = make_grabbed_folder_path(i, batch_size, threads)
+        folder_before_sorting = row['folder']
+        thread = row['thread']
+
+        thread_path_before_sorting = os.path.join(folder_before_sorting, f'{thread:08d}.txt')
+        thread_path_after_sorting = os.path.join(folder_after_sorting, f'{thread:08d}.txt')
+
+        # if os.path.isfile(thread_path_before_sorting):
+        #     print(thread_path_before_sorting)
+
+        if folder_after_sorting != folder_before_sorting and os.path.isfile(thread_path_before_sorting):
+            print(thread_path_before_sorting, '->', thread_path_after_sorting)
+            if not pretend:
+                move(thread_path_before_sorting, thread_path_after_sorting)
+
+    if not pretend:
+        df.to_csv(destination, sep = '\t', index = False)
 
 
 @main.command()
