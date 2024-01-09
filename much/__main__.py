@@ -106,10 +106,14 @@ def _decode_date(date: str):
         return date
 
 
-def make_grabbed_folder_path(i: int, batch_size: int, path: str):
+def make_grabbed_folder_path(i: int, batch_size: int, path: str = None):
     offset = i // batch_size * batch_size
     batch_max_count = offset + batch_size - 1
     batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+
+    if path is None:
+        return batch_folder_name
+
     return os.path.join(path, batch_folder_name)
 
 
@@ -145,6 +149,7 @@ def sort(source: str, destination: str, batch_size: int, threads: str, pretend: 
                 move(thread_path_before_sorting, thread_path_after_sorting)
 
     if not pretend:
+        df['folder'] = df.index.to_series().apply(lambda i: make_grabbed_folder_path(i, batch_size))
         df.to_csv(destination, sep = '\t', index = False)
 
 
