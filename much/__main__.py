@@ -128,7 +128,11 @@ TIMEOUT = 3600
 @option('--pretend', '-p', is_flag = True)
 def sort(source: str, destination: str, batch_size: int, threads: str, pretend: bool):
     df = read_csv(source, sep = '\t')
-    df['folder'] = df.index.to_series().apply(lambda i: make_grabbed_folder_path(i, batch_size, threads))
+
+    if 'folder' not in df.columns:
+        df['folder'] = df.index.to_series().apply(lambda i: make_grabbed_folder_path(i, batch_size, threads))
+    else:
+        df['folder'] = df.folder.apply(lambda folder: os.path.join(threads, folder))
 
     df.sort_values(by = ['thread'], inplace = True)
 
@@ -143,7 +147,7 @@ def sort(source: str, destination: str, batch_size: int, threads: str, pretend: 
         # if os.path.isfile(thread_path_before_sorting):
         #     print(thread_path_before_sorting)
 
-        if folder_after_sorting != folder_before_sorting and os.path.isfile(thread_path_before_sorting):
+        if folder_after_sorting != folder_before_sorting:  # and os.path.isfile(thread_path_before_sorting):
             print(thread_path_before_sorting, '->', thread_path_after_sorting)
             if not pretend:
                 move(thread_path_before_sorting, thread_path_after_sorting)
