@@ -272,7 +272,8 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int,
 @option('--path', '-p', type = str, default = 'threads')
 @option('--index', '-i', type = str, default = 'index.tsv')
 @option('--batch-size', '-b', help = 'how many threads to put in a folder', default = 10000)
-def load(url: str, path: str, index: str, batch_size: int):
+@option('--top-n', '-n', type = int, help = 'handle only first n entries', default = None)
+def load(url: str, path: str, index: str, batch_size: int, top_n: int):
     last_records_list = read_csv(index, sep = '\t').to_dict(orient = 'records') if os.path.isfile(index) else None
     last_records = None if last_records_list is None else {
         item['thread']: item
@@ -293,28 +294,36 @@ def load(url: str, path: str, index: str, batch_size: int):
 
     offset = 0
     batch_max_count = offset + batch_size - 1
+    batch_folder_size = None
+    batch_folder_name = None
+    batch_folder_path = None
 
-    while True:
-        batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
-        batch_folder_path = os.path.join(path, batch_folder_name)
-        batch_folder_size = None
+    def refresh_batch_folder_path():
+        nonlocal offset, batch_max_count, batch_folder_size, batch_folder_name, batch_folder_path
 
-        if not os.path.isdir(batch_folder_path):
-            os.makedirs(batch_folder_path)
-            batch_folder_size = 0
-        else:
-            batch_folder_size = len([name for name in os.listdir(batch_folder_path)])
+        while True:
+            batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+            batch_folder_path = os.path.join(path, batch_folder_name)
+            batch_folder_size = None
 
-            if batch_folder_size < batch_size:
-                break
+            if not os.path.isdir(batch_folder_path):
+                os.makedirs(batch_folder_path)
+                batch_folder_size = 0
             else:
+                batch_folder_size = len(os.listdir(batch_folder_path))
+
+                if batch_folder_size < batch_size:
+                    break
+
                 offset = batch_max_count + 1
                 batch_max_count = offset + batch_size - 1
+
+    refresh_batch_folder_path()
 
     fetcher = Fetcher()
     exporter = Exporter()
 
-    for thread in tqdm(json['threads']):
+    for thread in tqdm(json['threads'] if top_n is None else json['threads'][:top_n]):
         day, month, year = thread['date'].split(' ')[0].split('/')
 
         thread_id = thread['num']
@@ -326,16 +335,20 @@ def load(url: str, path: str, index: str, batch_size: int):
             last_batch_folder_name = last_record['folder']
 
         if last_thread_path is None and batch_folder_size >= batch_size:
-            offset = batch_max_count + 1
-            batch_max_count = offset + batch_size - 1
-            batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
-            batch_folder_path = os.path.join(path, batch_folder_name)
+            refresh_batch_folder_path()
 
-            if os.path.isdir(batch_folder_path):
-                raise ValueError(f'Folder {batch_folder_path} already exists')
+            # offset = batch_max_count + 1
+            # batch_max_count = offset + batch_size - 1
+            # batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+            # batch_folder_path = os.path.join(path, batch_folder_name)
 
-            os.makedirs(batch_folder_path)
-            batch_folder_size = 0
+            # if os.path.isdir(batch_folder_path):
+            #     print(f'Folder {batch_folder_path} already exists')
+            #     batch_folder_size = len(os.listdir(batch_folder_path))
+            #     # raise ValueError(f'Folder {batch_folder_path} already exists')
+            # else:
+            #     os.makedirs(batch_folder_path, exist_ok = True)
+            #     batch_folder_size = 0
 
         # print(thread_id, last_thread_path, last_batch_folder_name)
 
