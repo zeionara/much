@@ -1,3 +1,5 @@
+import os
+
 from enum import Enum
 from json import dump
 from typing import Iterable
@@ -14,7 +16,11 @@ class Exporter:
     def __init__(self):
         pass
 
-    def export(self, topics: Iterable[Topic], format: Format = Format.JSON, path = 'assets/topics.json'):
+    def export(self, topics: Iterable[Topic], format: Format = Format.JSON, path = 'assets/topics.json', force_overwrite: bool = False):
+        if not force_overwrite and len(topics) < 1 and os.path.isfile(path) and os.stat(path).st_size > 0:  # don't overwrite non-empty files
+            print(f'Won\'t overwrite file {path} because it already contains some data, and the topic list is empty')
+            return
+
         if format == Format.JSON:
             data = {
                 'topics': [

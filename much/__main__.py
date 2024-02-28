@@ -121,6 +121,26 @@ TIMEOUT = 3600
 
 
 @main.command()
+@option('--threads', '-t', help = 'Path to the root folder with threads', default = 'threads')
+def list_empty_threads(threads: str):
+    batch_paths = os.listdir(threads)
+
+    n_threads = 0
+    n_empty_threads = 0
+
+    for batch_path in tqdm(batch_paths):
+        for thread in os.listdir(batch_full_path := os.path.join(threads, batch_path)):
+            file_stat = os.stat(os.path.join(batch_full_path, thread))
+
+            if file_stat.st_size < 1:
+                n_empty_threads += 1
+
+            n_threads += 1
+
+    print(f'{n_empty_threads} / {n_threads} threads are empty ({100 * n_empty_threads / n_threads:.3f}%)')
+
+
+@main.command()
 @option('--source', '-s', default = 'index.tsv')
 @option('--destination', '-d', default = 'index.tsv')
 @option('--batch-size', '-b', help = 'How many threads to put in a folder', default = 10000)
@@ -364,11 +384,20 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int):
         )
 
         # try:
+
+        size_before_update = None if last_thread_path is None else os.stat(last_thread_path).st_size
         exporter.export(
             fetcher.fetch(THREAD_URL.format(thread = thread_id)),
             format = Format.TXT,
-            path = os.path.join(batch_folder_path, f'{thread_id}.txt') if last_thread_path is None else last_thread_path
+            path = (final_path := (os.path.join(batch_folder_path, f'{thread_id}.txt') if last_thread_path is None else last_thread_path))
         )
+        size_after_update = os.stat(final_path).st_size
+
+        if size_before_update is not None and (size_after_update < 1 and size_before_update > 0):
+            print(f'ATTENTION! Lost some data in file {final_path}')
+        elif size_after_update < 1:
+            print(f'ATTENTION! Empty thread {final_path}')
+
         records[thread_id] = record
         if last_thread_path is None:
             batch_folder_size += 1
