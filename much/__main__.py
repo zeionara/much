@@ -16,6 +16,8 @@ from tqdm import tqdm
 from requests.exceptions import ConnectionError, ChunkedEncodingError
 from flask import Flask
 
+from rr.alternator import _alternate
+
 from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
 from .Post import Post
@@ -36,6 +38,7 @@ ARHIVACH_CACHE_PATH = 'assets/cache.html'
 
 BOARD_NAME_TEMLATE = re.compile('/[a-zA-Z0-9]+/')
 TIME_TEMPLATE = re.compile('[0-9]+:[0-9]+')
+NEWLINE = '\n'
 
 empty_list_lock = Lock()
 
@@ -118,6 +121,54 @@ def make_grabbed_folder_path(i: int, batch_size: int, path: str = None):
 
 
 TIMEOUT = 3600
+
+
+@main.command()
+@argument('path', default = 'alternation-list.txt')
+@argument('threads', default = 'threads')
+@argument('alternated', default = 'audible')
+@option('--artist-one', '-a1', help = 'first artist to say the replic', default = 'xenia')
+@option('--artist-two', '-a2', help = 'second artist to say the replic', default = 'baya')
+def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_two: str):
+    input_entries = []
+    output_entries = []
+
+    # 1. Read the file
+
+    with open(path, 'r', encoding = 'utf-8') as file:
+        for line in file.readlines():
+            thread, name = line[:-1].split(' ', maxsplit = 1)
+            input_entries.append({'thread': thread, 'name': name})
+
+    # 2. Check which threads are no longer available, and alternate them
+
+    for entry in input_entries:
+        thread = entry['thread']
+        name = entry['name']
+
+        response = get(THREAD_URL.format(thread = thread), timeout = TIMEOUT)
+
+        if response.status_code == 404:
+            target_txt_path = os.path.join(alternated, f'{name}.txt')
+            target_mp3_path = os.path.join(alternated, f'{name}.mp3')
+
+            print(f'Alternating thread {thread} as {target_txt_path}...')
+
+            if not os.path.isfile(target_txt_path):
+                for batch_path in os.listdir(threads):
+                    for file in os.listdir(batch_full_path := os.path.join(threads, batch_path)):
+                        if file.startswith(thread):
+                            copyfile(os.path.join(batch_full_path, file), target_txt_path)
+
+            if not os.path.isfile(target_mp3_path):
+                _alternate(target_txt_path, artist_one, artist_two)
+        else:
+            output_entries.append(entry)
+
+    # 3. Write the file
+
+    with open(path, 'w', encoding = 'utf-8') as file:
+        file.writelines([f'{entry["thread"]} {entry["name"]}{NEWLINE}' for entry in output_entries])
 
 
 @main.command()
