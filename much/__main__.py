@@ -1,5 +1,6 @@
 import re
 import os
+from os import environ as env
 from pathlib import Path
 from shutil import copyfile, move
 from html import unescape
@@ -7,6 +8,7 @@ from multiprocessing import Pool, Lock
 from datetime import datetime, timedelta
 from math import ceil
 from time import sleep
+from random import sample
 
 from click import group, argument, option, Choice
 from requests import get
@@ -15,6 +17,7 @@ from pandas import DataFrame, read_csv, concat
 from tqdm import tqdm
 from requests.exceptions import ConnectionError, ChunkedEncodingError
 from flask import Flask
+# from vk_api import VkApi
 
 from rr.alternator import _alternate
 
@@ -22,6 +25,8 @@ from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
 from .Post import Post
 from .util import normalize, SPACE
+# from .vk_auth import auth
+from .vk import upload_audio
 
 
 @group()
@@ -124,6 +129,37 @@ TIMEOUT = 3600
 
 
 @main.command()
+@argument('path', type = str)
+@option('--audio-owner', '-o', type = int)
+@option('--api-version', type = str, default = '5.199')
+@option('--title', '-t', type = str)
+@option('--artist', '-a', type = str)
+def post(path: str, audio_owner: int, api_version: str, title: str, artist: str):
+    token = env.get('MUCH_VK_TOKEN')
+
+    if token is None:
+        raise ValueError('vk token is required to post content')
+
+    token_owner = env.get('MUCH_VK_USER_ID')
+
+    if token_owner is None:
+        raise ValueError('vk user id is required to post content')
+
+    if audio_owner is None:
+        audio_owner = env.get('MUCH_VK_GROUP_ID')
+
+        if audio_owner is not None:
+            audio_owner = int(audio_owner)
+
+    if not os.path.isfile(path):
+        raise ValueError(f'No such file: {path}')
+
+    audio_id = upload_audio(path, title, artist, token, token_owner, audio_owner, api_version)
+
+    print(f'Uploaded successfully as {audio_id}')
+
+
+@main.command()
 @argument('path', default = 'alternation-list.txt')
 @argument('threads', default = 'threads')
 @argument('alternated', default = 'audible')
@@ -132,6 +168,24 @@ TIMEOUT = 3600
 def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_two: str):
     input_entries = []
     output_entries = []
+
+    token = env.get('MUCH_VK_TOKEN')
+
+    if token is None:
+        raise ValueError('vk token is required to post content')
+
+    token_owner = env.get('MUCH_VK_USER_ID')
+
+    if token_owner is None:
+        raise ValueError('vk user id is required to post content')
+
+    audio_owner = env.get('MUCH_VK_GROUP_ID')
+
+    if audio_owner is not None:
+        audio_owner = int(audio_owner)
+
+    if not os.path.isfile(path):
+        raise ValueError(f'No such file: {path}')
 
     # 1. Read the file
 
@@ -162,6 +216,9 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
 
             if not os.path.isfile(target_mp3_path):
                 _alternate(target_txt_path, artist_one, artist_two)
+
+                artist = sample(['Анон', 'Анонимус', 'Чел', 'Пчел', 'Челик', 'Ананас', 'Анончик'], k = 1)[0]
+                upload_audio(path, name.replace('-full', '').replace('-', ' ').strip().capitalize(), artist, token, token_owner, audio_owner, api_version = '5.199')
         else:
             output_entries.append(entry)
 
