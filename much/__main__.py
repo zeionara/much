@@ -218,7 +218,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                 _alternate(target_txt_path, artist_one, artist_two)
 
                 artist = sample(['Анон', 'Анонимус', 'Чел', 'Пчел', 'Челик', 'Ананас', 'Анончик'], k = 1)[0]
-                upload_audio(path, name.replace('-full', '').replace('-', ' ').strip().capitalize(), artist, token, token_owner, audio_owner, api_version = '5.199')
+                upload_audio(target_mp3_path, name.replace('-full', '').replace('-', ' ').strip().capitalize(), artist, token, token_owner, audio_owner, api_version = '5.199')
         else:
             output_entries.append(entry)
 
