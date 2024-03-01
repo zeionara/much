@@ -89,4 +89,4 @@ def upload_audio(path: str, title: str, artist: str, token: str, token_owner: in
         else:
             raise ValueError(f'Unexpected response from server when uploading audio: {response.content}')
     else:
-        raise ValueError('Unexpected response from server when obtaining upload url: {response.content}')
+        raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')
