@@ -18,6 +18,7 @@ from pandas import DataFrame, read_csv, concat
 from tqdm import tqdm
 from requests.exceptions import ConnectionError, ChunkedEncodingError
 from flask import Flask
+# from google_images_search import GoogleImagesSearch
 # from vk_api import VkApi
 
 from rr.alternator import _alternate
@@ -28,6 +29,9 @@ from .Post import Post
 from .util import normalize, SPACE
 # from .vk_auth import auth
 from .vk import upload_audio
+from .ImageSearchEngine import ImageSearchEngine
+from .nlp import summarize
+from .VkClient import VkClient
 
 
 @group()
@@ -131,146 +135,177 @@ def make_grabbed_folder_path(i: int, batch_size: int, path: str = None):
 TIMEOUT = 3600
 
 
+@main.command(name = 'summarize')
+@argument('path', type = str)
+def summarize_(path: str):
+    print(summarize(path))
+
+
 @main.command()
-@argument('audio', type = int)
-@option('--owner', '-o', type = int)
-@option('--link', '-l', type = str)
-@option('--caption', '-c', type = str)
-@option('--api-version', type = str, default = VK_API_VERSION)
-def post(audio: int, owner: int, link: str, caption: str, api_version: str):
-    token = env.get('MUCH_VK_TOKEN')
+@argument('query', type = str)
+def search(query: str):
+    print(ImageSearchEngine().search(query))
 
-    if token is None:
-        raise ValueError('vk token in required to post content')
 
-    if owner is None:
-        owner = env.get('MUCH_VK_GROUP_ID')
+@main.command()
+@argument('path', type = str)
+@argument('title', type = str)
+@argument('caption', type = str)
+@option('--artist', '-a', type = str)
+def post(path: str, title: str, caption: str, artist: str):
+    post_id = VkClient().post(path, title, caption, artist)
 
-        if owner is not None:
-            owner = int(owner)
+    print(post_id)
 
-    album = env.get('MUCH_VK_ALBUM_ID')
 
-    if album is None:
-        raise ValueError('vk album id is required to post content')
-
-    if link is None:
-        raise ValueError('link to the poster image is required')
-
-    # link = 'https://irecommend.ru/sites/default/files/product-images/1004264/TITfSV46WnFpnBIcFMqAUQ.png'
-
-    # reader = BufferedReader(BytesIO(get(link, timeout = TIMEOUT).content))
-
-    # with open('/tmp/2ch.png', 'rb') as file:
-    #     print(file, reader)
-
-    # return
-
-    # image = get(link).content
-
-    # print(image)
-
-    # return
-
-    def make_attachments(audio: int, media_owner: int, poster: int):
-        # return f"audio{audio_owner}_{audio},https://irecommend.ru/sites/default/files/product-images/1004264/TITfSV46WnFpnBIcFMqAUQ.png"
-        return f"audio{media_owner}_{audio},photo{media_owner}_{poster}"
-
-    response = postt(
-        url = 'https://api.vk.com/method/photos.getUploadServer',
-        data = {
-            'group_id': abs(owner),
-            'album_id': album,
-            'access_token': token,
-            'v': api_version
-        },
-        timeout = TIMEOUT
-    )
-
-    if response.status_code == 200:
-        response_json = response.json()['response']
-
-        upload_url = response_json['upload_url']
-
-        # with open('/tmp/bitcoin-logo.jpg', 'rb') as file:
-        #     print(file)
-        # reader = BufferedReader(BytesIO(get(link, timeout = TIMEOUT).content))
-
-        # print(reader.read())
-
-        # return
-
-        response = postt(
-            url = upload_url,
-            files = {
-                'file': (Path(link).name, BufferedReader(BytesIO(get(link, timeout = TIMEOUT).content)))
-            },
-            timeout = TIMEOUT
-        )
-
-        if response.status_code == 200:
-            response_json = response.json()
-
-            photos_list = response_json['photos_list']
-            server = response_json['server']
-            hash_ = response_json['hash']
-
-            response = postt(
-                url = 'https://api.vk.com/method/photos.save',
-                data = {
-                    'group_id': abs(owner),
-                    'album_id': album,
-                    'server': server,
-                    'photos_list': photos_list,
-                    'hash': hash_,
-                    'caption': caption,
-                    'access_token': token,
-                    'v': api_version
-                },
-                timeout = TIMEOUT
-            )
-
-            if response.status_code == 200:
-                response_json = response.json()['response']
-
-                photo_id = response_json[0]['id']
-
-                response = postt(
-                    url = 'https://api.vk.com/method/wall.post',
-                    data = {
-                        'owner_id': owner,
-                        'from_group': 1,
-                        'message': 'Post title',
-                        'attachments': make_attachments(audio, owner, photo_id),
-                        'access_token': token,
-                        'v': api_version
-                    },
-                    timeout = TIMEOUT
-                )
-
-                if response.status_code == 200:
-                    print(response.json())
-                else:
-                    raise ValueError(f'Unexpected response from server when creating a post: {response.content}')
-            else:
-                raise ValueError(f'Unexpected response from server when saving uploaded photo: {response.content}')
-        else:
-            raise ValueError(f'Unexpected response from server when uploading photo: {response.content}')
-    else:
-        raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')
-
-    # response = postt(
-    #     url = 'https://api.vk.com/method/wall.post',
-    #     data = {
-    #         'owner_id': owner,
-    #         'from_group': 1,
-    #         'message': 'Post title',
-    #         'attachments': make_attachments(audio, owner, 'https://irecommend.ru/sites/default/files/product-images/1004264/TITfSV46WnFpnBIcFMqAUQ.png'),
-    #         'access_token': token,
-    #         'v': api_version
-    #     },
-    #     timeout = TIMEOUT
-    # )
+# @main.command()
+# @argument('audio', type = int)
+# @option('--owner', '-o', type = int)
+# @option('--link', '-l', type = str)
+# @option('--caption', '-c', type = str)
+# @option('--api-version', type = str, default = VK_API_VERSION)
+# def post(audio: int, owner: int, link: str, caption: str, api_version: str):
+#     VkClient().post(caption, audio)
+# 
+#     # token = env.get('MUCH_VK_TOKEN')
+# 
+#     # if token is None:
+#     #     raise ValueError('vk token in required to post content')
+# 
+#     # if owner is None:
+#     #     owner = env.get('MUCH_VK_GROUP_ID')
+# 
+#     #     if owner is not None:
+#     #         owner = int(owner)
+# 
+#     # album = env.get('MUCH_VK_ALBUM_ID')
+# 
+#     # if album is None:
+#     #     raise ValueError('vk album id is required to post content')
+# 
+#     # # if link is None:
+#     # #     raise ValueError('link to the poster image is required')
+# 
+#     # # link = 'https://irecommend.ru/sites/default/files/product-images/1004264/TITfSV46WnFpnBIcFMqAUQ.png'
+# 
+#     # # reader = BufferedReader(BytesIO(get(link, timeout = TIMEOUT).content))
+# 
+#     # # with open('/tmp/2ch.png', 'rb') as file:
+#     # #     print(file, reader)
+# 
+#     # # return
+# 
+#     # # image = get(link).content
+# 
+#     # # print(image)
+# 
+#     # # return
+# 
+#     # def make_attachments(audio: int, media_owner: int, poster: int):
+#     #     # return f"audio{audio_owner}_{audio},https://irecommend.ru/sites/default/files/product-images/1004264/TITfSV46WnFpnBIcFMqAUQ.png"
+#     #     return f"audio{media_owner}_{audio},photo{media_owner}_{poster}"
+# 
+#     # response = postt(
+#     #     url = 'https://api.vk.com/method/photos.getUploadServer',
+#     #     data = {
+#     #         'group_id': abs(owner),
+#     #         'album_id': album,
+#     #         'access_token': token,
+#     #         'v': api_version
+#     #     },
+#     #     timeout = TIMEOUT
+#     # )
+# 
+#     # if response.status_code == 200:
+#     #     response_json = response.json()['response']
+# 
+#     #     upload_url = response_json['upload_url']
+# 
+#     #     # with open('/tmp/bitcoin-logo.jpg', 'rb') as file:
+#     #     #     print(file)
+#     #     # reader = BufferedReader(BytesIO(get(link, timeout = TIMEOUT).content))
+# 
+#     #     # print(reader.read())
+# 
+#     #     # return
+# 
+#     #     if link is None:
+#     #         if caption is None:
+#     #             raise ValueError('Image link or caption is required')
+# 
+#     #         link = ImageSearchEngine().search(caption)
+# 
+#     #     response = postt(
+#     #         url = upload_url,
+#     #         files = {
+#     #             'file': (Path(link).name, BufferedReader(BytesIO(get(link, timeout = TIMEOUT).content)))
+#     #         },
+#     #         timeout = TIMEOUT
+#     #     )
+# 
+#     #     if response.status_code == 200:
+#     #         response_json = response.json()
+# 
+#     #         photos_list = response_json['photos_list']
+#     #         server = response_json['server']
+#     #         hash_ = response_json['hash']
+# 
+#     #         response = postt(
+#     #             url = 'https://api.vk.com/method/photos.save',
+#     #             data = {
+#     #                 'group_id': abs(owner),
+#     #                 'album_id': album,
+#     #                 'server': server,
+#     #                 'photos_list': photos_list,
+#     #                 'hash': hash_,
+#     #                 'caption': caption,
+#     #                 'access_token': token,
+#     #                 'v': api_version
+#     #             },
+#     #             timeout = TIMEOUT
+#     #         )
+# 
+#     #         if response.status_code == 200:
+#     #             response_json = response.json()['response']
+# 
+#     #             photo_id = response_json[0]['id']
+# 
+#     #             response = postt(
+#     #                 url = 'https://api.vk.com/method/wall.post',
+#     #                 data = {
+#     #                     'owner_id': owner,
+#     #                     'from_group': 1,
+#     #                     'message': 'Post title',
+#     #                     'attachments': make_attachments(audio, owner, photo_id),
+#     #                     'access_token': token,
+#     #                     'v': api_version
+#     #                 },
+#     #                 timeout = TIMEOUT
+#     #             )
+# 
+#     #             if response.status_code == 200:
+#     #                 print(response.json())
+#     #             else:
+#     #                 raise ValueError(f'Unexpected response from server when creating a post: {response.content}')
+#     #         else:
+#     #             raise ValueError(f'Unexpected response from server when saving uploaded photo: {response.content}')
+#     #     else:
+#     #         raise ValueError(f'Unexpected response from server when uploading photo: {response.content}')
+#     # else:
+#     #     raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')
+# 
+#     # # response = postt(
+#     # #     url = 'https://api.vk.com/method/wall.post',
+#     # #     data = {
+#     # #         'owner_id': owner,
+#     # #         'from_group': 1,
+#     # #         'message': 'Post title',
+#     # #         'attachments': make_attachments(audio, owner, 'https://irecommend.ru/sites/default/files/product-images/1004264/TITfSV46WnFpnBIcFMqAUQ.png'),
+#     # #         'access_token': token,
+#     # #         'v': api_version
+#     # #     },
+#     # #     timeout = TIMEOUT
+#     # # )
 
 
 # @main.command()
@@ -314,23 +349,23 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
     input_entries = []
     output_entries = []
 
-    token = env.get('MUCH_VK_TOKEN')
+    # token = env.get('MUCH_VK_TOKEN')
 
-    if token is None:
-        raise ValueError('vk token is required to post content')
+    # if token is None:
+    #     raise ValueError('vk token is required to post content')
 
-    token_owner = env.get('MUCH_VK_USER_ID')
+    # token_owner = env.get('MUCH_VK_USER_ID')
 
-    if token_owner is None:
-        raise ValueError('vk user id is required to post content')
+    # if token_owner is None:
+    #     raise ValueError('vk user id is required to post content')
 
-    audio_owner = env.get('MUCH_VK_GROUP_ID')
+    # audio_owner = env.get('MUCH_VK_GROUP_ID')
 
-    if audio_owner is not None:
-        audio_owner = int(audio_owner)
+    # if audio_owner is not None:
+    #     audio_owner = int(audio_owner)
 
-    if not os.path.isfile(path):
-        raise ValueError(f'No such file: {path}')
+    # if not os.path.isfile(path):
+    #     raise ValueError(f'No such file: {path}')
 
     # 1. Read the file
 
@@ -340,6 +375,8 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
             input_entries.append({'thread': thread, 'name': name})
 
     # 2. Check which threads are no longer available, and alternate them
+
+    vk_client = VkClient()
 
     for entry in input_entries:
         thread = entry['thread']
@@ -362,8 +399,12 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
             if not os.path.isfile(target_mp3_path):
                 _alternate(target_txt_path, artist_one, artist_two)
 
-                artist = sample(['Анон', 'Анонимус', 'Чел', 'Пчел', 'Челик', 'Ананас', 'Анончик'], k = 1)[0]
-                upload_audio(target_mp3_path, name.replace('-full', '').replace('-', ' ').strip().capitalize(), artist, token, token_owner, audio_owner, api_version = VK_API_VERSION)
+                artist = sample(['Анон', 'Анонимус', 'Чел', 'Пчел', 'Челик', 'Ананас', 'Анончик', 'Anonymous', 'Unknown', 'Unnamed', 'Incognito', 'Hidden', 'None', 'Nil', 'Null', 'Антон'], k = 1)[0]
+                caption = name.replace('-full', '').replace('-', ' ').strip().capitalize()
+
+                # upload_audio(target_mp3_path, caption, artist, token, token_owner, audio_owner, api_version = VK_API_VERSION)
+
+                vk_client.post(target_mp3_path, summarize(target_txt_path), caption, artist)
         else:
             output_entries.append(entry)
 
