@@ -404,7 +404,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
 
                 # upload_audio(target_mp3_path, caption, artist, token, token_owner, audio_owner, api_version = VK_API_VERSION)
 
-                vk_client.post(target_mp3_path, summarize(target_txt_path), caption, artist)
+                vk_client.post(target_mp3_path, summarize(target_txt_path, default = caption), caption, artist)
         else:
             output_entries.append(entry)
 
