@@ -6,7 +6,7 @@ from google_images_search import GoogleImagesSearch
 
 
 class ImageSearchEngine:
-    def __init__(self, api_key: str = None, cx: str = None, size: str = 'large', kind: str = 'png', top_n: int = 10):
+    def __init__(self, api_key: str = None, cx: str = None, size: str = 'large', kind: str = 'png', top_n: int = 20):
         if api_key is None:
             api_key = env.get('RR_GIS_API_KEY')
 
@@ -40,10 +40,15 @@ class ImageSearchEngine:
 
         gis.search(search_params)
 
+        urls = []
+
         for image in gis.results():
             url = image.url
 
             if not url.startswith('https://preview.redd.it') and url.endswith(kind):
-                return image.url
+                urls.append(image.url)
+
+        if len(urls) > 0:
+            return urls
 
         raise ValueError(f'Can\'t find an image for query \'{query}\'')

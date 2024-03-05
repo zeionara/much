@@ -66,14 +66,22 @@ class VkClient:
 
         self.api_version = api_version
 
-    def post(self, path: str, title: str, caption: str, artist: str = None, message: str = None):
-        # print('Uploading audio...')
-        audio = self._upload_audio(path, title, artist)
-        # print(f'Uploaded audio {audio}, creating post...')
-        return self._post(caption, audio, message)
-        # print(f'Created post {post_id}')
+    def post(self, path: str, title: str, caption: str, artist: str = None, message: str = None, verbose: bool = False):
+        if verbose:
+            print('Uploading audio...')
 
-        # return post_id
+        audio = self._upload_audio(path, title, artist)
+        # audio = 456239121
+
+        if verbose:
+            print(f'Uploaded audio {audio}, creating post...')
+
+        post_id = self._post(caption, audio, message, verbose = verbose)
+
+        if verbose:
+            print(f'Created post {post_id}')
+
+        return post_id
 
     def _upload_audio(self, path: str, title: str, artist: str = None):
         token = self.audio_token
@@ -163,7 +171,7 @@ class VkClient:
             raise ValueError(f'Unexpected response from server when uploading audio: {response.content}')
         raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')
 
-    def _post(self, caption: str, audio: int, title: str = None):
+    def _post(self, caption: str, audio: int, title: str = None, verbose: bool = False):
         owner = self.post_owner
         album = self.post_album
         token = self.post_token
@@ -186,53 +194,46 @@ class VkClient:
 
             upload_url = response_json['upload_url']
 
-            link = ImageSearchEngine().search(caption)
+            links = ImageSearchEngine().search(caption)
 
-            response = postt(
-                url = upload_url,
-                files = {
-                    'file': (Path(link).name, BufferedReader(BytesIO(get(link, timeout = TIMEOUT).content)))
-                },
-                timeout = TIMEOUT
-            )
-
-            if response.status_code == 200:
-                response_json = response.json()
-
-                photos_list = response_json['photos_list']
-                server = response_json['server']
-                hash_ = response_json['hash']
+            for link in links:
+                if verbose:
+                    print(f'Found image {link}')
 
                 response = postt(
-                    url = 'https://api.vk.com/method/photos.save',
-                    data = {
-                        'group_id': abs(owner),
-                        'album_id': album,
-                        'server': server,
-                        'photos_list': photos_list,
-                        'hash': hash_,
-                        'caption': caption,
-                        'access_token': token,
-                        'v': api_version
+                    url = upload_url,
+                    files = {
+                        'file': (file := (f'image{Path(link).suffix}', BufferedReader(BytesIO(get(link, timeout = TIMEOUT).content))))
                     },
                     timeout = TIMEOUT
                 )
 
-                if response.status_code == 200:
-                    try:
-                        response_json = response.json()['response']
-                    except KeyError:
-                        raise ValueError(f'Invalid response after saving photos: {response.json()}')
+                if verbose:
+                    print(file)
 
-                    photo_id = response_json[0]['id']
+                if response.status_code == 200:
+                    response_json = response.json()
+
+                    photos_list = response_json['photos_list']
+                    server = response_json['server']
+                    hash_ = response_json['hash']
+
+                    if len(photos_list) < 1:
+                        continue
+                        # raise ValueError('Can\'t upload an image')
+
+                    if verbose:
+                        print(f'Photos list: {photos_list}')
 
                     response = postt(
-                        url = 'https://api.vk.com/method/wall.post',
+                        url = 'https://api.vk.com/method/photos.save',
                         data = {
-                            'owner_id': owner,
-                            'from_group': 1,
-                            'message': title,
-                            'attachments': make_attachments(audio, owner, photo_id),
+                            'group_id': abs(owner),
+                            'album_id': album,
+                            'server': server,
+                            'photos_list': photos_list,
+                            'hash': hash_,
+                            'caption': caption,
                             'access_token': token,
                             'v': api_version
                         },
@@ -240,9 +241,31 @@ class VkClient:
                     )
 
                     if response.status_code == 200:
-                        return response.json()['response']['post_id']
+                        try:
+                            response_json = response.json()['response']
+                        except KeyError:
+                            raise ValueError(f'Invalid response after saving photos: {response.json()}')
 
-                    raise ValueError(f'Unexpected response from server when creating a post: {response.content}')
-                raise ValueError(f'Unexpected response from server when saving uploaded photo: {response.content}')
-            raise ValueError(f'Unexpected response from server when uploading photo: {response.content}')
+                        photo_id = response_json[0]['id']
+
+                        response = postt(
+                            url = 'https://api.vk.com/method/wall.post',
+                            data = {
+                                'owner_id': owner,
+                                'from_group': 1,
+                                'message': title,
+                                'attachments': make_attachments(audio, owner, photo_id),
+                                'access_token': token,
+                                'v': api_version
+                            },
+                            timeout = TIMEOUT
+                        )
+
+                        if response.status_code == 200:
+                            return response.json()['response']['post_id']
+
+                        raise ValueError(f'Unexpected response from server when creating a post: {response.content}')
+                    raise ValueError(f'Unexpected response from server when saving uploaded photo: {response.content}')
+                # raise ValueError(f'Unexpected response from server when uploading photo: {response.content}')
+            raise ValueError('Exhausted poster candidates')
         raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')

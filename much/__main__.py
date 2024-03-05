@@ -144,18 +144,42 @@ def summarize_(path: str):
 @main.command()
 @argument('query', type = str)
 def search(query: str):
-    print(ImageSearchEngine().search(query))
+    for url in ImageSearchEngine().search(query):
+        print(url)
 
 
 @main.command()
-@argument('path', type = str)
-@argument('title', type = str)
-@argument('caption', type = str)
-@option('--artist', '-a', type = str)
-def post(path: str, title: str, caption: str, artist: str):
-    post_id = VkClient().post(path, title, caption, artist)
+@argument('name', type = str)
+@option('--artist', '-a', type = str, default = 'None')
+@option('--root', '-r', type = str, default = 'audible')
+@option('--verbose', '-v', is_flag = True)
+def post(name: str, artist: str, root: str, verbose: bool):
+    name_with_suffix = f'{name}-full'
+    caption = name.replace('-', ' ').strip().capitalize()
 
-    print(post_id)
+    post_id = VkClient().post(
+        os.path.join(root, f'{name_with_suffix}.mp3'),
+        summarize(
+            os.path.join(root, f'{name_with_suffix}.txt'),
+            default = caption
+        ),
+        caption,
+        artist,
+        verbose = verbose
+    )
+
+    print(f'Posted as {post_id}')
+
+
+# @main.command()
+# @argument('path', type = str)
+# @argument('title', type = str)
+# @argument('caption', type = str)
+# @option('--artist', '-a', type = str)
+# def post(path: str, title: str, caption: str, artist: str):
+#     post_id = VkClient().post(path, title, caption, artist)
+# 
+#     print(post_id)
 
 
 # @main.command()
