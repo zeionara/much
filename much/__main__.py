@@ -32,6 +32,7 @@ from .vk import upload_audio
 from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
 from .VkClient import VkClient
+from .ArtistSampler import ArtistSampler
 
 
 @group()
@@ -133,6 +134,15 @@ def make_grabbed_folder_path(i: int, batch_size: int, path: str = None):
 
 
 TIMEOUT = 3600
+
+
+@main.command()
+def sample_artist():
+    sampler = ArtistSampler()
+
+    print(sampler.artists)
+
+    print(sampler.sample())
 
 
 @main.command(name = 'summarize')
@@ -401,6 +411,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
     # 2. Check which threads are no longer available, and alternate them
 
     vk_client = VkClient()
+    artist_sampler = ArtistSampler()
 
     for entry in input_entries:
         thread = entry['thread']
@@ -423,12 +434,13 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
             if not os.path.isfile(target_mp3_path):
                 _alternate(target_txt_path, artist_one, artist_two)
 
-                artist = sample(['Анон', 'Анонимус', 'Чел', 'Пчел', 'Челик', 'Ананас', 'Анончик', 'Anonymous', 'Unknown', 'Unnamed', 'Incognito', 'Hidden', 'None', 'Nil', 'Null', 'Антон'], k = 1)[0]
+                # artist = sample(['Анон', 'Анонимус', 'Чел', 'Пчел', 'Челик', 'Ананас', 'Анончик', 'Anonymous', 'Unknown', 'Unnamed', 'Incognito', 'Hidden', 'None', 'Nil', 'Null', 'Антон'], k = 1)[0]
+                # artist = artist_sampler.sample()
                 caption = name.replace('-full', '').replace('-', ' ').strip().capitalize()
 
                 # upload_audio(target_mp3_path, caption, artist, token, token_owner, audio_owner, api_version = VK_API_VERSION)
 
-                vk_client.post(target_mp3_path, summarize(target_txt_path, default = caption), caption, artist)
+                vk_client.post(target_mp3_path, summarize(target_txt_path, default = caption), caption, artist_sampler.sample())
         else:
             output_entries.append(entry)
 
