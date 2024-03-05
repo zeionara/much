@@ -147,8 +147,9 @@ def sample_artist():
 
 @main.command(name = 'summarize')
 @argument('path', type = str)
-def summarize_(path: str):
-    print(summarize(path))
+@option('--max-length', '-m', type = int, default = 10)
+def summarize_(path: str, max_length: int):
+    print(summarize(path, max_length = max_length))
 
 
 @main.command()
@@ -440,7 +441,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
 
                 # upload_audio(target_mp3_path, caption, artist, token, token_owner, audio_owner, api_version = VK_API_VERSION)
 
-                vk_client.post(target_mp3_path, summarize(target_txt_path, default = caption), caption, artist_sampler.sample())
+                vk_client.post(target_mp3_path, summarize(target_txt_path, max_length = 7, default = caption), caption, artist_sampler.sample())
         else:
             output_entries.append(entry)
 
