@@ -66,7 +66,7 @@ class VkClient:
 
         self.api_version = api_version
 
-    def post(self, path: str, title: str, caption: str, artist: str = None, message: str = None, verbose: bool = False):
+    def post(self, path: str, title: str, caption: str, artist: str = None, message: str = None, poster: str = None, verbose: bool = False):
         if verbose:
             print('Uploading audio...')
 
@@ -76,7 +76,7 @@ class VkClient:
         if verbose:
             print(f'Uploaded audio {audio}, creating post...')
 
-        post_id = self._post(caption, audio, message, verbose = verbose)
+        post_id = self._post(caption, audio, message, poster, verbose)
 
         if verbose:
             print(f'Created post {post_id}')
@@ -171,7 +171,7 @@ class VkClient:
             raise ValueError(f'Unexpected response from server when uploading audio: {response.content}')
         raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')
 
-    def _post(self, caption: str, audio: int, title: str = None, verbose: bool = False):
+    def _post(self, caption: str, audio: int, title: str = None, poster: str = None, verbose: bool = False):
         owner = self.post_owner
         album = self.post_album
         token = self.post_token
@@ -196,17 +196,29 @@ class VkClient:
 
             links = ImageSearchEngine().search(caption)
 
+            if poster is not None:
+                links = [None, *links]
+
             for link in links:
                 if verbose:
                     print(f'Found image {link}')
 
+                if poster is None:
+                    file = (f'image{Path(link).suffix}', BufferedReader(BytesIO(get(link, timeout = TIMEOUT).content)))
+                else:
+                    file = open(poster, 'rb')
+
                 response = postt(
                     url = upload_url,
                     files = {
-                        'file': (file := (f'image{Path(link).suffix}', BufferedReader(BytesIO(get(link, timeout = TIMEOUT).content))))
+                        'file': file
                     },
                     timeout = TIMEOUT
                 )
+
+                if poster is not None:
+                    poster = None
+                    file.close()
 
                 if verbose:
                     print(file)
