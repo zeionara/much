@@ -7,6 +7,7 @@ import numpy as np
 
 
 QUOTE_TEMPLATE = re.compile('^>+')
+EXCLAMATION = re.compile('[?!]+')
 
 
 def summarize(path: str, median: bool = False, min_length: int = 3, max_length: int = 10, default: str = None):
@@ -29,6 +30,8 @@ def summarize(path: str, median: bool = False, min_length: int = 3, max_length: 
 
     for chunk in chunks:
         for sent in sent_tokenize(chunk):
+            sent = EXCLAMATION.sub('?', sent)
+
             if sent.endswith('.') and not sent.endswith('..'):
                 sent = sent[:-1]
 
@@ -42,7 +45,7 @@ def summarize(path: str, median: bool = False, min_length: int = 3, max_length: 
     if len(candidates) < 1:
         return default
 
-    scores = np.array(np.mean(vectorizer.transform(candidates), axis = 1)).flatten().tolist()
+    scores = np.array(np.max(vectorizer.transform(candidates), axis = 1)).flatten().tolist()
 
     scores, candidates = zip(*sorted(zip(scores, candidates), key = lambda pair: pair[0], reverse = True))
 

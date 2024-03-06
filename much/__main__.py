@@ -190,7 +190,8 @@ def post(name: str, artist: str, root: str, verbose: bool):
 @option('--artist-one', '-a1', help = 'first artist to say the replic', default = 'xenia')
 @option('--artist-two', '-a2', help = 'second artist to say the replic', default = 'baya')
 @option('--poster-root', '-r', type = str, default = '/tmp/much-images')
-def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_two: str, poster_root: str):
+@option('--verbose', '-v', is_flag = True)
+def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_two: str, poster_root: str, verbose: bool):
     input_entries = []
     output_entries = []
 
@@ -234,6 +235,9 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
             target_txt_path = os.path.join(alternated, f'{name}.txt')
             target_mp3_path = os.path.join(alternated, f'{name}.mp3')
 
+            with open(target_txt_path, 'r', encoding = 'utf-8') as file:
+                first_post = file.readline()[:-1]
+
             print(f'Alternating thread {thread} as {target_txt_path}...')
 
             if not os.path.isfile(target_txt_path):
@@ -256,7 +260,9 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                     title = summarize(target_txt_path, max_length = 7, default = caption),
                     caption = caption,
                     artist = artist_sampler.sample(),
-                    poster = find_original_poster(thread, poster_root)
+                    message = first_post,
+                    poster = find_original_poster(thread, poster_root),
+                    verbose = verbose
                 )
         else:
             output_entries.append(entry)
