@@ -153,10 +153,19 @@ def sample_artist():
 @option('--verbose', '-v', is_flag = True)
 @option('--model', '-m', type = str, default = 'IlyaGusev/rut5_base_headline_gen_telegram')
 @option('--min-duplicate-fraction', '-f', type = float, default = 0.25)
-def summarize_(path: str, verbose: bool, model: str, min_duplicate_fraction: float):
+@option('--local', '-l', is_flag = True)
+def summarize_(path: str, verbose: bool, model: str, min_duplicate_fraction: float, local: bool):
     # print("'" + post_process_summary('"`Не удалёнщики, а каноничные двачеры? Есть тут хикки 30+ лвла? Не удалёнщики, а каноничные двачеры?"') + "'")
     # print("'" + post_process_summary('foo bar baz qux quux quuz bar baz qux quux') + "'")
-    print(post_process_summary(HuggingFaceClient(model = model).summarize(path, verbose), min_duplicate_fraction = min_duplicate_fraction))
+
+    for _ in range(10):
+        print(
+            post_process_summary(
+                HuggingFaceClient(model = model, local = local, hf_cache = 'hf-cache', device = 0).summarize(path, verbose),
+                min_duplicate_fraction = min_duplicate_fraction
+            )
+        )
+
     # print(summarize(path, max_length = max_length))
 
 
@@ -233,7 +242,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
     # 2. Check which threads are no longer available, and alternate them
 
     vk_client = VkClient()
-    hf_client = HuggingFaceClient()
+    hf_client = HuggingFaceClient(hf_cache = 'hf-cache', local = True, device = 0)
     artist_sampler = ArtistSampler()
 
     for entry in input_entries:

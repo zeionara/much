@@ -193,8 +193,8 @@ class VkClient:
             response = postt(
                 url = 'https://api.vk.com/method/video.save',
                 data = {
-                    'name': caption,
-                    'description': title,
+                    'name': caption[:128],
+                    'description': title[:5000],
                     'repeat': 1,
                     'group_id': abs(owner),
                     'access_token': token,
@@ -278,7 +278,7 @@ class VkClient:
                                 'server': server,
                                 'photos_list': photos_list,
                                 'hash': hash_,
-                                'caption': caption,
+                                'caption': caption[:2048] if title is None else title[:2048],
                                 'access_token': token,
                                 'v': api_version
                             },
