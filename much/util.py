@@ -13,6 +13,11 @@ SPACE = ' '
 
 DELETED_TRAILERS = ('"', "'", '`')
 
+IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg')
+VIDEO_EXTENSIONS = ('.mp4', '.webm')
+
+ALLOWED_EXTENSIONS = (*IMAGE_EXTENSIONS, *VIDEO_EXTENSIONS)
+
 
 def normalize(string: str):
     return SPACE_TEMPLATE.sub(SPACE, string).strip()
@@ -36,7 +41,7 @@ def make_ordinal(i: int):
     return f'{i}th'
 
 
-def pull_original_poster(thread: dict, root: str, allowed_extensions = ('.png', '.jpg', '.jpeg')):
+def pull_original_poster(thread: dict, root: str, allowed_extensions = ALLOWED_EXTENSIONS):
     thread_id = thread['num']
 
     print('handling thread', thread_id)
@@ -139,3 +144,11 @@ def post_process_summary(text: str, min_duplicate_fraction: float = 0.25):
         return text.strip()
 
     return post_process_summary(text.strip(), min_duplicate_fraction = min_duplicate_fraction)
+
+
+def is_image(path: str):
+    return Path(path).suffix in IMAGE_EXTENSIONS
+
+
+def is_video(path: str):
+    return Path(path).suffix in VIDEO_EXTENSIONS

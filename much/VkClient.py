@@ -5,13 +5,16 @@ from io import BytesIO, BufferedReader
 from requests import post as postt, get
 
 from .ImageSearchEngine import ImageSearchEngine
+from .util import is_image, is_video
 
 
 TIMEOUT = 3600
 
 
-def make_attachments(audio: int, media_owner: int, poster: int):
-    return f"audio{media_owner}_{audio},photo{media_owner}_{poster}"
+def make_attachments(audio: int, media_owner: int, poster: int, video: int):
+    if video is None:
+        return f"audio{media_owner}_{audio},photo{media_owner}_{poster}"
+    return f"audio{media_owner}_{audio},video{media_owner}_{video}"
 
 
 class VkClient:
@@ -180,16 +183,35 @@ class VkClient:
 
         api_version = self.api_version
 
-        response = postt(
-            url = 'https://api.vk.com/method/photos.getUploadServer',
-            data = {
-                'group_id': abs(owner),
-                'album_id': album,
-                'access_token': token,
-                'v': api_version
-            },
-            timeout = TIMEOUT
-        )
+        poster_is_image = None if poster is None else is_image(poster)
+        poster_is_video = None if poster is None else is_video(poster)
+
+        if poster_is_image is False and poster_is_video is False:
+            raise ValueError(f'Incorrect poster path: {poster}')
+
+        if poster_is_video:
+            response = postt(
+                url = 'https://api.vk.com/method/video.save',
+                data = {
+                    'name': caption,
+                    'description': title,
+                    'group_id': abs(owner),
+                    'access_token': token,
+                    'v': api_version
+                },
+                timeout = TIMEOUT
+            )
+        else:
+            response = postt(
+                url = 'https://api.vk.com/method/photos.getUploadServer',
+                data = {
+                    'group_id': abs(owner),
+                    'album_id': album,
+                    'access_token': token,
+                    'v': api_version
+                },
+                timeout = TIMEOUT
+            )
 
         if response.status_code == 200:
             response_json = response.json()['response']
@@ -203,7 +225,7 @@ class VkClient:
 
             for link in links:
                 if verbose:
-                    print(f'Found image {link}')
+                    print(f'Found poster {link}')
 
                 if poster is None:
                     file = (f'image{Path(link).suffix}', BufferedReader(BytesIO(get(link, timeout = TIMEOUT).content)))
@@ -228,42 +250,52 @@ class VkClient:
                 if response.status_code == 200:
                     response_json = response.json()
 
-                    photos_list = response_json['photos_list']
-                    server = response_json['server']
-                    hash_ = response_json['hash']
+                    photos_list = None if poster_is_video else response_json['photos_list']
+                    server = None if poster_is_video else response_json['server']
+                    hash_ = None if poster_is_video else response_json['hash']
 
-                    if len(photos_list) < 1:
+                    if not poster_is_video and len(photos_list) < 1:
                         if poster is not None:
                             poster = None
+
+                            poster_is_video = None
+                            poster_is_image = None
+
                             links.extend(self.search_engine.search(caption))
                         continue
                         # raise ValueError('Can\'t upload an image')
 
-                    if verbose:
+                    if not poster_is_video and verbose:
                         print(f'Photos list: {photos_list}')
 
-                    response = postt(
-                        url = 'https://api.vk.com/method/photos.save',
-                        data = {
-                            'group_id': abs(owner),
-                            'album_id': album,
-                            'server': server,
-                            'photos_list': photos_list,
-                            'hash': hash_,
-                            'caption': caption,
-                            'access_token': token,
-                            'v': api_version
-                        },
-                        timeout = TIMEOUT
-                    )
+                    if not poster_is_video:
+                        response = postt(
+                            url = 'https://api.vk.com/method/photos.save',
+                            data = {
+                                'group_id': abs(owner),
+                                'album_id': album,
+                                'server': server,
+                                'photos_list': photos_list,
+                                'hash': hash_,
+                                'caption': caption,
+                                'access_token': token,
+                                'v': api_version
+                            },
+                            timeout = TIMEOUT
+                        )
 
-                    if response.status_code == 200:
-                        try:
-                            response_json = response.json()['response']
-                        except KeyError:
-                            raise ValueError(f'Invalid response after saving photos: {response.json()}')
+                    if poster_is_video or response.status_code == 200:
+                        if poster_is_video:
+                            video_id = response_json['video_id']
+                            photo_id = None
+                        else:
+                            try:
+                                response_json = response.json()['response']
+                            except KeyError:
+                                raise ValueError(f'Invalid response after saving photos: {response.json()}')
 
-                        photo_id = response_json[0]['id']
+                            photo_id = response_json[0]['id']
+                            video_id = None
 
                         response = postt(
                             url = 'https://api.vk.com/method/wall.post',
@@ -271,7 +303,7 @@ class VkClient:
                                 'owner_id': owner,
                                 'from_group': 1,
                                 'message': title,
-                                'attachments': make_attachments(audio, owner, photo_id),
+                                'attachments': make_attachments(audio, owner, photo_id, video_id),
                                 'access_token': token,
                                 'v': api_version
                             },
@@ -285,6 +317,10 @@ class VkClient:
                     raise ValueError(f'Unexpected response from server when saving uploaded photo: {response.content}')
                 if poster is not None:
                     poster = None
+
+                    poster_is_video = None
+                    poster_is_image = None
+
                     links.extend(self.search_engine.search(caption))
                 # raise ValueError(f'Unexpected response from server when uploading photo: {response.content}')
             raise ValueError('Exhausted poster candidates')

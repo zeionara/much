@@ -172,7 +172,8 @@ def search(query: str):
 @option('--artist', '-a', type = str, default = 'None')
 @option('--root', '-r', type = str, default = 'audible')
 @option('--verbose', '-v', is_flag = True)
-def post(name: str, artist: str, root: str, verbose: bool):
+@option('--poster', '-p', type = str)
+def post(name: str, artist: str, root: str, verbose: bool, poster: str):
     name_with_suffix = f'{name}-full'
     caption = name.replace('-', ' ').strip().capitalize()
 
@@ -185,6 +186,7 @@ def post(name: str, artist: str, root: str, verbose: bool):
         ),
         caption,
         artist,
+        poster = poster,
         verbose = verbose
     )
 
