@@ -6,9 +6,11 @@ from requests import get
 
 TIMEOUT = 3600
 
-SPACE_TEMPLATE = re.compile('\s+')
-PURE_SPACES_TEMPLATE = re.compile('\s*')
+SPACE_TEMPLATE = re.compile(r'\s+')
+PURE_SPACES_TEMPLATE = re.compile(r'\s*')
 SPACE = ' '
+
+DELETED_TRAILERS = ('"', "'", '`')
 
 
 def normalize(string: str):
@@ -76,3 +78,19 @@ def drop_original_poster(thread: str, root: str):
             return removed_path
 
     return None
+
+
+def post_process_summary(text: str):
+    input_text = text
+
+    for trailer in DELETED_TRAILERS:
+        if text.startswith(trailer):
+            text = text[1:]
+
+        if text.endswith(trailer):
+            text = text[:-1]
+
+    if input_text == text:
+        return text
+
+    return post_process_summary(text)

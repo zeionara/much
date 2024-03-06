@@ -26,7 +26,7 @@ from rr.alternator import _alternate
 from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
 from .Post import Post
-from .util import normalize, SPACE, pull_original_poster, drop_original_poster, find_original_poster
+from .util import normalize, SPACE, pull_original_poster, drop_original_poster, find_original_poster, post_process_summary
 # from .vk_auth import auth
 from .vk import upload_audio
 from .ImageSearchEngine import ImageSearchEngine
@@ -153,6 +153,7 @@ def sample_artist():
 @option('--verbose', '-v', is_flag = True)
 @option('--model', '-m', type = str, default = 'IlyaGusev/rut5_base_headline_gen_telegram')
 def summarize_(path: str, verbose: bool, model: str):
+    # print(post_process_summary('""foo bar"'))
     print(HuggingFaceClient(model = model).summarize(path, verbose))
     # print(summarize(path, max_length = max_length))
 
@@ -262,7 +263,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                 # upload_audio(target_mp3_path, caption, artist, token, token_owner, audio_owner, api_version = VK_API_VERSION)
 
                 try:
-                    summary = hf_client.summarize(first_post)
+                    summary = post_process_summary(hf_client.summarize(first_post))
                 except ValueError:
                     summary = summarize(target_txt_path, max_length = 7, default = caption)
 
