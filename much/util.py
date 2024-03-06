@@ -1,5 +1,6 @@
 import os
 import re
+from math import floor
 from pathlib import Path
 
 from requests import get
@@ -80,8 +81,11 @@ def drop_original_poster(thread: str, root: str):
     return None
 
 
-def post_process_summary(text: str):
+def post_process_summary(text: str, min_duplicate_fraction: float = 0.25):
     input_text = text
+    min_match_size = floor(len(text) * min_duplicate_fraction)
+
+    # 1. Delete undesired headers / trailers
 
     for trailer in DELETED_TRAILERS:
         if text.startswith(trailer):
@@ -90,7 +94,48 @@ def post_process_summary(text: str):
         if text.endswith(trailer):
             text = text[:-1]
 
-    if input_text == text:
-        return text
+    # 2. Delete repeating chunks of text
 
-    return post_process_summary(text)
+    i = 0
+    j = 0
+
+    length = len(text)
+
+    i_matches = []
+    j_matches = []
+
+    for i in range(length):
+        for j in range(length):
+            if i != j and text[i] == text[j]:
+                i_ = i + 1
+                j_ = j + 1
+
+                while i_ < length and j_ < length and text[i_] == text[j_]:
+                    i_ += 1
+                    j_ += 1
+
+                if j_ - j >= min_match_size:
+                    i_match = (i, i_)
+                    j_match = (j, j_)
+
+                    if i_match not in j_matches:
+                        for match in i_matches:
+                            if match[0] <= i_match[0] and i_match[1] <= match[1]:
+                                break
+                        else:
+                            for match in j_matches:
+                                if match[0] <= i_match[0] and i_match[1] <= match[1]:
+                                    break
+                            else:
+                                i_matches.append(i_match)
+                                j_matches.append(j_match)
+
+    if len(j_matches) > 0:
+        longest_match = sorted(j_matches, key = lambda item: item[1] - item[0], reverse = True)[0]
+
+        text = text[:longest_match[0]] + text[longest_match[1] + 1:]
+
+    if input_text == text:
+        return text.strip()
+
+    return post_process_summary(text.strip(), min_duplicate_fraction = min_duplicate_fraction)

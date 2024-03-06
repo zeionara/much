@@ -7,7 +7,7 @@ from shutil import copyfile, move
 from html import unescape
 from multiprocessing import Pool, Lock
 from datetime import datetime, timedelta
-from math import ceil
+from math import ceil, floor
 from time import sleep
 from random import sample
 
@@ -152,9 +152,11 @@ def sample_artist():
 @argument('path', type = str)
 @option('--verbose', '-v', is_flag = True)
 @option('--model', '-m', type = str, default = 'IlyaGusev/rut5_base_headline_gen_telegram')
-def summarize_(path: str, verbose: bool, model: str):
-    # print(post_process_summary('""foo bar"'))
-    print(HuggingFaceClient(model = model).summarize(path, verbose))
+@option('--min-duplicate-fraction', '-f', type = float, default = 0.25)
+def summarize_(path: str, verbose: bool, model: str, min_duplicate_fraction: float):
+    # print("'" + post_process_summary('"`Не удалёнщики, а каноничные двачеры? Есть тут хикки 30+ лвла? Не удалёнщики, а каноничные двачеры?"') + "'")
+    # print("'" + post_process_summary('foo bar baz qux quux quuz bar baz qux quux') + "'")
+    print(post_process_summary(HuggingFaceClient(model = model).summarize(path, verbose), min_duplicate_fraction = min_duplicate_fraction))
     # print(summarize(path, max_length = max_length))
 
 
