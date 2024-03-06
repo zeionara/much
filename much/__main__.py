@@ -241,9 +241,6 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
             target_txt_path = os.path.join(alternated, f'{name}.txt')
             target_mp3_path = os.path.join(alternated, f'{name}.mp3')
 
-            with open(target_txt_path, 'r', encoding = 'utf-8') as file:
-                first_post = file.readline()[:-1]
-
             print(f'Alternating thread {thread} as {target_txt_path}...')
 
             if not os.path.isfile(target_txt_path):
@@ -251,6 +248,9 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                     for file in os.listdir(batch_full_path := os.path.join(threads, batch_path)):
                         if file.startswith(thread):
                             copyfile(os.path.join(batch_full_path, file), target_txt_path)
+
+            with open(target_txt_path, 'r', encoding = 'utf-8') as file:
+                first_post = file.readline()[:-1]
 
             if not os.path.isfile(target_mp3_path):
                 _alternate(target_txt_path, artist_one, artist_two)
@@ -261,9 +261,14 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
 
                 # upload_audio(target_mp3_path, caption, artist, token, token_owner, audio_owner, api_version = VK_API_VERSION)
 
+                try:
+                    summary = hf_client.summarize(first_post)
+                except ValueError:
+                    summary = summarize(target_txt_path, max_length = 7, default = caption)
+
                 vk_client.post(
                     path = target_mp3_path,
-                    title = hf_client.summarize(first_post),  # summarize(target_txt_path, max_length = 7, default = caption),
+                    title = summary,
                     caption = caption,
                     artist = artist_sampler.sample(),
                     message = first_post,

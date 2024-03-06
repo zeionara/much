@@ -3,6 +3,9 @@ from time import sleep
 
 from requests import post
 
+WAITING_INTERVAL = 60
+N_ATTEMPTS = 5
+
 
 class HuggingFaceClient:
     def __init__(self, model: str = 'IlyaGusev/rut5_base_headline_gen_telegram', token: str = None):
@@ -21,6 +24,7 @@ class HuggingFaceClient:
         }
 
     def summarize(self, text: str, verbose: bool = False):
+        n_attempts = 0
         while True:
             response = post(self.url, headers = self.headers, json = text)
 
@@ -36,6 +40,14 @@ class HuggingFaceClient:
                     if verbose:
                         print('Proceeding...')
                 else:
-                    raise ValueError(f'Unexpected error format: {response_json}')
+                    if n_attempts > N_ATTEMPTS:
+                        raise ValueError(f'Unexpected error format: {response_json}')
+                    else:
+                        n_attempts += 1
+                        sleep(WAITING_INTERVAL)
             else:
-                raise ValueError(f'Unexpected response status code: {response.status_code}')
+                if n_attempts > N_ATTEMPTS:
+                    raise ValueError(f'Unexpected response status code: {response.status_code}')
+                else:
+                    n_attempts += 1
+                    sleep(WAITING_INTERVAL)
