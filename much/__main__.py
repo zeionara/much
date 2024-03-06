@@ -33,6 +33,7 @@ from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
 from .VkClient import VkClient
 from .ArtistSampler import ArtistSampler
+from .HuggingFaceClient import HuggingFaceClient
 
 
 @group()
@@ -145,11 +146,15 @@ def sample_artist():
     print(sampler.sample())
 
 
+# @option('--max-length', '-m', type = int, default = 10)
+# def summarize_(path: str, max_length: int, verbose: bool, model: str):
 @main.command(name = 'summarize')
 @argument('path', type = str)
-@option('--max-length', '-m', type = int, default = 10)
-def summarize_(path: str, max_length: int):
-    print(summarize(path, max_length = max_length))
+@option('--verbose', '-v', is_flag = True)
+@option('--model', '-m', type = str, default = 'IlyaGusev/rut5_base_headline_gen_telegram')
+def summarize_(path: str, verbose: bool, model: str):
+    print(HuggingFaceClient(model = model).summarize(path, verbose))
+    # print(summarize(path, max_length = max_length))
 
 
 @main.command()
@@ -223,6 +228,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
     # 2. Check which threads are no longer available, and alternate them
 
     vk_client = VkClient()
+    hf_client = HuggingFaceClient()
     artist_sampler = ArtistSampler()
 
     for entry in input_entries:
@@ -257,7 +263,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
 
                 vk_client.post(
                     path = target_mp3_path,
-                    title = summarize(target_txt_path, max_length = 7, default = caption),
+                    title = hf_client.summarize(first_post),  # summarize(target_txt_path, max_length = 7, default = caption),
                     caption = caption,
                     artist = artist_sampler.sample(),
                     message = first_post,
