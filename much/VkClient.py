@@ -195,6 +195,7 @@ class VkClient:
                 data = {
                     'name': caption,
                     'description': title,
+                    'repeat': 1,
                     'group_id': abs(owner),
                     'access_token': token,
                     'v': api_version
