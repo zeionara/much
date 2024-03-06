@@ -66,6 +66,8 @@ class VkClient:
 
         self.api_version = api_version
 
+        self.search_engine = ImageSearchEngine()
+
     def post(self, path: str, title: str, caption: str, artist: str = None, message: str = None, poster: str = None, verbose: bool = False):
         if verbose:
             print('Uploading audio...')
@@ -194,10 +196,10 @@ class VkClient:
 
             upload_url = response_json['upload_url']
 
-            links = ImageSearchEngine().search(caption)
+            links = self.search_engine.search(caption) if poster is None else [None]
 
-            if poster is not None:
-                links = [None, *links]
+            # if poster is not None:
+            #     links = [None, *links]
 
             for link in links:
                 if verbose:
@@ -217,7 +219,7 @@ class VkClient:
                 )
 
                 if poster is not None:
-                    poster = None
+                    # poster = None
                     file.close()
 
                 if verbose:
@@ -231,6 +233,9 @@ class VkClient:
                     hash_ = response_json['hash']
 
                     if len(photos_list) < 1:
+                        if poster is not None:
+                            poster = None
+                            links.extend(self.search_engine.search(caption))
                         continue
                         # raise ValueError('Can\'t upload an image')
 
@@ -278,6 +283,9 @@ class VkClient:
 
                         raise ValueError(f'Unexpected response from server when creating a post: {response.content}')
                     raise ValueError(f'Unexpected response from server when saving uploaded photo: {response.content}')
+                if poster is not None:
+                    poster = None
+                    links.extend(self.search_engine.search(caption))
                 # raise ValueError(f'Unexpected response from server when uploading photo: {response.content}')
             raise ValueError('Exhausted poster candidates')
         raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')
