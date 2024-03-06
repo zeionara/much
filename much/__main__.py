@@ -18,6 +18,7 @@ from pandas import DataFrame, read_csv, concat
 from tqdm import tqdm
 from requests.exceptions import ConnectionError, ChunkedEncodingError
 from flask import Flask
+from karma import CloudMail
 # from google_images_search import GoogleImagesSearch
 # from vk_api import VkApi
 
@@ -28,12 +29,14 @@ from .Exporter import Exporter, Format
 from .Post import Post
 from .util import normalize, SPACE, pull_original_poster, drop_original_poster, find_original_poster, post_process_summary
 # from .vk_auth import auth
-from .vk import upload_audio
+# from .vk import upload_audio
 from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
 from .VkClient import VkClient
 from .ArtistSampler import ArtistSampler
 from .HuggingFaceClient import HuggingFaceClient
+# from .folder import cached_folder
+from .CloudFile import CloudFile
 
 
 @group()
@@ -200,6 +203,92 @@ def post(name: str, artist: str, root: str, verbose: bool, poster: str):
     )
 
     print(f'Posted as {post_id}')
+
+
+@main.command()
+@option('--root', '-r', default = '/2ch')
+@option('--username', '-u', type = str)
+@option('--password', '-p', type = str)
+@option('--batch-size', '-b', type = int, default = 100)
+@option('--cookies', '-c', type = str, default = 'cloud-mail-cookies.json')
+def cleanup(root: str, username: str, password: str, batch_size: int, cookies: str):
+    # if os.path.isfile(cookies):
+    #     cm = CloudMail(None, None)
+    #     cm.load_cookies_from_file(cookies)
+    # else:
+    if username is None:
+        username = env.get('KARMA_USERNAME')
+
+        if username is None:
+            raise ValueError('Cloud mail ru username is required')
+
+    if password is None:
+        password = env.get('KARMA_PASSWORD')
+
+        if password is None:
+            raise ValueError('Cloud mail ru password is required')
+
+    cm = CloudMail(username, password)
+    cm.auth()
+
+    # cm.save_cookies_to_file(cookies)
+
+    files = []
+
+    offset = 0
+
+    with tqdm() as pbar:
+        while True:
+            folder = cm.api.folder(root, limit = batch_size, offset = offset, sort = {'type': 'date', 'order': 'desc'})
+
+            # folder = cached_folder
+
+            body = folder['body']
+
+            if pbar.total is None:
+                count = body['count']
+
+                n_folders = count['folders']
+                n_files = count['files']
+
+                pbar.total = n_folders + n_files
+                pbar.refresh()
+
+            n_total = 0
+
+            for file in body['list']:
+                if file['kind'] == 'file':
+                    files.append(CloudFile.from_json(file))
+
+                n_total += 1
+
+            pbar.update(n_total)
+
+            # print(body['list'][0]['name'], offset, n_total)
+
+            if n_total < batch_size:
+                break
+
+            offset += n_total
+
+    filenames = [file.name for file in sorted(files, key = lambda file: file.timestamp, reverse = True)]
+    filenames_for_deletion = []
+
+    for name in filenames:
+        path = Path(name)
+
+        stem = path.stem
+        suffix = path.suffix
+
+        if f'{stem}-full{suffix}' in filenames:
+            filenames_for_deletion.append(name)
+
+    # print(filenames_for_deletion, len(filenames_for_deletion))
+
+    for filename in tqdm(filenames_for_deletion):
+        cm.api.file.remove(f'{root}/{filename}')
+
+    print(f'Deleted {len(filenames_for_deletion)} files')
 
 
 @main.command()
