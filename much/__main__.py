@@ -172,7 +172,8 @@ def post(name: str, artist: str, root: str, verbose: bool):
         os.path.join(root, f'{name_with_suffix}.mp3'),
         summarize(
             os.path.join(root, f'{name_with_suffix}.txt'),
-            default = caption
+            default = caption,
+            max_length = 7
         ),
         caption,
         artist,
