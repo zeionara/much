@@ -345,12 +345,21 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
             target_mp3_path = os.path.join(alternated, f'{name}.mp3')
 
             print(f'Alternating thread {thread} as {target_txt_path}...')
+            found_thread = False
 
             if not os.path.isfile(target_txt_path):
                 for batch_path in os.listdir(threads):
                     for file in os.listdir(batch_full_path := os.path.join(threads, batch_path)):
                         if file.startswith(thread):
                             copyfile(os.path.join(batch_full_path, file), target_txt_path)
+                            found_thread = True
+                            break
+                    if found_thread:
+                        break
+
+            if not found_thread:
+                print(f'Can\'t find thread {thread}. Skipping...')
+                continue
 
             with open(target_txt_path, 'r', encoding = 'utf-8') as file:
                 first_post = file.readline()[:-1]

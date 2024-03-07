@@ -81,7 +81,8 @@ class VkClient:
         if verbose:
             print(f'Uploaded audio {audio}, creating post...')
 
-        post_id = self._post(caption, audio, message, poster, verbose)
+        # post_id = self._post(caption, audio, message, poster, verbose)
+        post_id = self._post(caption if title is None else title, audio, message, poster, verbose)
 
         if verbose:
             print(f'Created post {post_id}')
