@@ -186,7 +186,7 @@ def search(query: str):
 @option('--verbose', '-v', is_flag = True)
 @option('--poster', '-p', type = str)
 def post(name: str, artist: str, root: str, verbose: bool, poster: str):
-    name_with_suffix = f'{name}-full'
+    name_with_suffix = name   # f'{name}-full'
     caption = name.replace('-', ' ').strip().capitalize()
 
     post_id = VkClient().post(
@@ -280,8 +280,8 @@ def cleanup(root: str, username: str, password: str, batch_size: int, cookies: s
         stem = path.stem
         suffix = path.suffix
 
-        if f'{stem}-full{suffix}' in filenames:
-            filenames_for_deletion.append(name)
+        if (snapshot_name := f'{stem}-snapshot{suffix}') in filenames:
+            filenames_for_deletion.append(snapshot_name)
 
     # print(filenames_for_deletion, len(filenames_for_deletion))
 
@@ -369,7 +369,9 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
 
                 # artist = sample(['Анон', 'Анонимус', 'Чел', 'Пчел', 'Челик', 'Ананас', 'Анончик', 'Anonymous', 'Unknown', 'Unnamed', 'Incognito', 'Hidden', 'None', 'Nil', 'Null', 'Антон'], k = 1)[0]
                 # artist = artist_sampler.sample()
-                caption = name.replace('-full', '').replace('-', ' ').strip().capitalize()
+
+                # caption = name.replace('-full', '').replace('-', ' ').strip().capitalize()
+                caption = name.replace('-', ' ').strip().capitalize()
 
                 # upload_audio(target_mp3_path, caption, artist, token, token_owner, audio_owner, api_version = VK_API_VERSION)
 
