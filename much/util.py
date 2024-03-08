@@ -10,6 +10,7 @@ TIMEOUT = 3600
 SPACE_TEMPLATE = re.compile(r'\s+')
 PURE_SPACES_TEMPLATE = re.compile(r'\s*')
 SPACE = ' '
+ALPHANUM_CHARACTER_TEMPLATE = re.compile(r'[a-zA-Z0-9\s]')
 
 DELETED_TRAILERS = ('"', "'", '`')
 
@@ -87,6 +88,8 @@ def drop_original_poster(thread: str, root: str):
 
 
 def post_process_summary(text: str, min_duplicate_fraction: float = 0.25):
+    # moved to raconteur module: https://github.com/zeionara/raconteur
+
     input_text = text
     min_match_size = floor(len(text) * min_duplicate_fraction)
 
@@ -111,11 +114,11 @@ def post_process_summary(text: str, min_duplicate_fraction: float = 0.25):
 
     for i in range(length):
         for j in range(length):
-            if i != j and text[i] == text[j]:
+            if i != j and text[i].lower() == text[j].lower():
                 i_ = i + 1
                 j_ = j + 1
 
-                while i_ < length and j_ < length and text[i_] == text[j_]:
+                while i_ < length and j_ < length and text[i_].lower() == text[j_].lower():
                     i_ += 1
                     j_ += 1
 
@@ -144,6 +147,18 @@ def post_process_summary(text: str, min_duplicate_fraction: float = 0.25):
         return text.strip()
 
     return post_process_summary(text.strip(), min_duplicate_fraction = min_duplicate_fraction)
+
+
+def truncate_translation(text: str):
+    # moved to raconteur module: https://github.com/zeionara/raconteur
+
+    truncated_text = []
+
+    for char in normalize(text.lower()).strip():
+        if ALPHANUM_CHARACTER_TEMPLATE.fullmatch(char):
+            truncated_text.append(char)
+
+    return '-'.join(''.join(truncated_text).split(' '))
 
 
 def is_image(path: str):

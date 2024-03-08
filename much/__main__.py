@@ -22,19 +22,20 @@ from karma import CloudMail
 # from google_images_search import GoogleImagesSearch
 # from vk_api import VkApi
 
+from rr import HuggingFaceClient, Task, post_process_summary, truncate_translation
 from rr.alternator import _alternate
 
 from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
 from .Post import Post
-from .util import normalize, SPACE, pull_original_poster, drop_original_poster, find_original_poster, post_process_summary
+from .util import normalize, SPACE, pull_original_poster, drop_original_poster, find_original_poster  # , post_process_summary, truncate_translation
 # from .vk_auth import auth
 # from .vk import upload_audio
 from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
 from .VkClient import VkClient
 from .ArtistSampler import ArtistSampler
-from .HuggingFaceClient import HuggingFaceClient
+# from .HuggingFaceClient import HuggingFaceClient, Task
 # from .folder import cached_folder
 from .CloudFile import CloudFile
 
@@ -161,13 +162,32 @@ def summarize_(path: str, verbose: bool, model: str, min_duplicate_fraction: flo
     # print("'" + post_process_summary('"`Не удалёнщики, а каноничные двачеры? Есть тут хикки 30+ лвла? Не удалёнщики, а каноничные двачеры?"') + "'")
     # print("'" + post_process_summary('foo bar baz qux quux quuz bar baz qux quux') + "'")
 
-    for _ in range(10):
-        print(
-            post_process_summary(
-                HuggingFaceClient(model = model, local = local, hf_cache = 'hf-cache', device = 0).summarize(path, verbose),
-                min_duplicate_fraction = min_duplicate_fraction
-            )
-        )
+    summarization_client = HuggingFaceClient(model = model, local = local, hf_cache = 'hf-cache', device = 0)
+    translation_client = HuggingFaceClient(model = 'Helsinki-NLP/opus-mt-ru-en', task = Task.TRANSLATION, local = local, hf_cache = 'hf-cache', device = 0)
+
+    sources = [
+        """
+        Напоминаю ей, что сейчас любую лишнюю копейку надо направлять на утилизацию чубатой скотины, поэтому не только я эту тысячу отправлю героям СВО, но и им бы надо сделать то же самое.
+        """, """
+        Сап двач, почему ты такой токсичный? Все из вас, пока не тут, порядочные люди. Не оскорбляют и в рот не кому не оформляют.
+        Но почему стоит вам открыть эту помойку, как сразу вы превращаетесь в животных натурально. Почему так? я такой же
+        """
+    ]
+
+    summaries = [post_process_summary(summary) for summary in summarization_client.infer_many(sources)]
+    translations = [truncate_translation(translation) for translation in translation_client.infer_many(summaries)]
+
+    print(summaries)
+    print(translations)
+    print(summarization_client.summarize(sources[0]))
+
+    # for _ in range(10):
+    #     print(
+    #         post_process_summary(
+    #             HuggingFaceClient(model = model, local = local, hf_cache = 'hf-cache', device = 0).summarize(path, verbose),
+    #             min_duplicate_fraction = min_duplicate_fraction
+    #         )
+    #     )
 
     # print(summarize(path, max_length = max_length))
 
