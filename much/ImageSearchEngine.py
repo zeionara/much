@@ -5,6 +5,8 @@ from os import environ as env
 from google_images_search import GoogleImagesSearch
 from googleapiclient.errors import HttpError
 
+from .util import normalize
+
 
 class ImageSearchEngine:
     def __init__(self, api_key: str = None, api_key_fallback: str = None, cx: str = None, size: str = 'large', kind: str = 'png', top_n: int = 20):
@@ -36,7 +38,7 @@ class ImageSearchEngine:
 
         self.gis = GoogleImagesSearch(self.api_key, self.cx)
 
-    def search(self, query: str):
+    def search(self, query: str, root_query: str = None):
         search_params = {
             'q': query,
             'num': self.top_n,
@@ -65,4 +67,9 @@ class ImageSearchEngine:
         if len(urls) > 0:
             return urls
 
-        raise ValueError(f'Can\'t find an image for query \'{query}\'')
+        truncated_query = ' '.join(normalize(query).split(' ')[:-1])
+
+        if len(truncated_query) > 0:
+            return self.search(truncated_query, root_query = query if root_query is None else root_query)
+
+        raise ValueError(f'Can\'t find an image for query \'{query if root_query is None else root_query}\'')
