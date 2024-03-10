@@ -1,15 +1,18 @@
 import re
 import os
-from io import BytesIO, BufferedReader
+# from io import BytesIO, BufferedReader
 from os import environ as env
 from pathlib import Path
 from shutil import copyfile, move
 from html import unescape
 from multiprocessing import Pool, Lock
 from datetime import datetime, timedelta
-from math import ceil, floor
+# from math import ceil, floor
 from time import sleep
-from random import sample
+# from random import sample
+import warnings
+
+warnings.filterwarnings('ignore', category = UserWarning)
 
 from click import group, argument, option, Choice
 from requests import get, post as postt
@@ -171,6 +174,13 @@ def summarize_(path: str, verbose: bool, model: str, min_duplicate_fraction: flo
         """, """
         Сап двач, почему ты такой токсичный? Все из вас, пока не тут, порядочные люди. Не оскорбляют и в рот не кому не оформляют.
         Но почему стоит вам открыть эту помойку, как сразу вы превращаетесь в животных натурально. Почему так? я такой же
+        """,
+        """
+        СПАЛИЛА СЕСТРА ЗА ДРОЧКОЙ ТРЕД Анон, это просто пиздец.... Сейчас сидел в зале на стуле на корячкях и люто дрочил на порно с телефона.
+        И тут в зал входит старшая сестра ей 25 , бляяя это пиздец.... Думаю что увидела мой хуй т что я дрочу, но виду не подола просто спросила когда пойду спать,
+        но в её голосе какая-то хуйня странная была. Руки у меня сейчас дрожать что пиздец стали. Но я всё таки подрочил и слил на ковёр. Блят сука я на колясках как далбоеб сидел с голой
+        жопой и хуем. Это пизда, анон, никогда не забуду.... Подскажите что мне делать то блять? У тебя были случаи когда тебя спаливала за фапом мамка или сестра?
+        Дополнение: после этого сестра пошла в ванну, сейчас купается, но не думаю что она фапает, скорее в ахуи если увидела
         """
     ]
 
@@ -179,7 +189,7 @@ def summarize_(path: str, verbose: bool, model: str, min_duplicate_fraction: flo
 
     print(summaries)
     print(translations)
-    print(summarization_client.summarize(sources[0]))
+    print(summarization_client.apply(sources[0]))
 
     # for _ in range(10):
     #     print(
@@ -396,7 +406,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                 # upload_audio(target_mp3_path, caption, artist, token, token_owner, audio_owner, api_version = VK_API_VERSION)
 
                 try:
-                    summary = post_process_summary(hf_client.summarize(first_post))
+                    summary = post_process_summary(hf_client.apply(first_post))
                 except ValueError:
                     summary = summarize(target_txt_path, max_length = 7, default = caption)
 
