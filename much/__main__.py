@@ -650,6 +650,7 @@ def start_proxy(host: str, port: int, timeout: int, protocol: str):
 
     _ARHIVACH_THREAD_URL = f'{protocol}://arhivach.top/thread/{{thread}}'
     _ARHIVACH_INDEX_URL = f'{protocol}://arhivach.top/index/{{offset}}'
+    _ARHIVACH_MEDIA_URL = f'{protocol}://i.arhivach.xyz/{{path}}'
 
     @app.get('/thread/<thread>')
     def get_thread(thread: int):
@@ -661,6 +662,14 @@ def start_proxy(host: str, port: int, timeout: int, protocol: str):
     def get_index(offset: int):
         _url = _ARHIVACH_INDEX_URL.format(offset = offset)
         print(f'Pulling url {_url}')
+        response = get(_url, timeout = timeout)
+
+        return response.content, response.status_code
+
+    @app.get('/media/<path>')
+    def get_media(path: str):
+        _url = _ARHIVACH_MEDIA_URL.format(path = path.replace('---slash---', '/'))
+        print(f'Pulling media {path}')
         response = get(_url, timeout = timeout)
 
         return response.content, response.status_code
