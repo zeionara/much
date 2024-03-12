@@ -162,8 +162,12 @@ def truncate_translation(text: str):
 
 
 def is_image(path: str):
+    # moved to raconteur module: https://github.com/zeionara/raconteur
+
     return Path(path).suffix in IMAGE_EXTENSIONS
 
 
 def is_video(path: str):
+    # moved to raconteur module: https://github.com/zeionara/raconteur
+
     return Path(path).suffix in VIDEO_EXTENSIONS

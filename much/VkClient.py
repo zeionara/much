@@ -4,8 +4,9 @@ from io import BytesIO, BufferedReader
 
 from requests import post as postt, get
 
+from rr.util import is_image, is_video
+
 from .ImageSearchEngine import ImageSearchEngine
-from .util import is_image, is_video
 
 
 TIMEOUT = 3600
@@ -188,7 +189,7 @@ class VkClient:
         poster_is_video = None if poster is None else is_video(poster)
 
         if poster_is_image is False and poster_is_video is False:
-            raise ValueError(f'Incorrect poster path: {poster}')
+            raise ValueError(f'Incorrect poster path: {poster} for thread {caption}')
 
         if poster_is_video:
             response = postt(
@@ -294,7 +295,15 @@ class VkClient:
                             try:
                                 response_json = response.json()['response']
                             except KeyError:
-                                raise ValueError(f'Invalid response after saving photos: {response.json()}')
+                                if poster is not None:
+                                    poster = None
+
+                                    poster_is_video = None
+                                    poster_is_image = None
+
+                                    links.extend(self.search_engine.search(caption))
+                                continue
+                                # raise ValueError(f'Invalid response after saving photos: {response.json()}')
 
                             photo_id = response_json[0]['id']
                             video_id = None
@@ -315,8 +324,8 @@ class VkClient:
                         if response.status_code == 200:
                             return response.json()['response']['post_id']
 
-                        raise ValueError(f'Unexpected response from server when creating a post: {response.content}')
-                    raise ValueError(f'Unexpected response from server when saving uploaded photo: {response.content}')
+                        raise ValueError(f'Unexpected response from server when creating a post: {response.content} for thread {caption}')
+                    raise ValueError(f'Unexpected response from server when saving uploaded photo: {response.content} for thread {caption}')
                 if poster is not None:
                     poster = None
 
@@ -325,5 +334,5 @@ class VkClient:
 
                     links.extend(self.search_engine.search(caption))
                 # raise ValueError(f'Unexpected response from server when uploading photo: {response.content}')
-            raise ValueError('Exhausted poster candidates')
-        raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')
+            raise ValueError(f'Exhausted poster candidates for thread {caption}')
+        raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content} for thread {caption}')

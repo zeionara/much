@@ -22,6 +22,7 @@ from tqdm import tqdm
 from requests.exceptions import ConnectionError, ChunkedEncodingError
 from flask import Flask
 from karma import CloudMail
+from torch.cuda import OutOfMemoryError
 # from google_images_search import GoogleImagesSearch
 # from vk_api import VkApi
 
@@ -60,6 +61,8 @@ TIME_TEMPLATE = re.compile('[0-9]+:[0-9]+')
 NEWLINE = '\n'
 
 VK_API_VERSION = '5.199'
+
+POSTERS_DEFAULT_ROOT = '/tmp/much-images'
 
 empty_list_lock = Lock()
 
@@ -327,7 +330,7 @@ def cleanup(root: str, username: str, password: str, batch_size: int, cookies: s
 @argument('alternated', default = 'audible')
 @option('--artist-one', '-a1', help = 'first artist to say the replic', default = 'xenia')
 @option('--artist-two', '-a2', help = 'second artist to say the replic', default = 'baya')
-@option('--poster-root', '-r', type = str, default = '/tmp/much-images')
+@option('--poster-root', '-r', type = str, default = POSTERS_DEFAULT_ROOT)
 @option('--verbose', '-v', is_flag = True)
 def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_two: str, poster_root: str, verbose: bool):
     input_entries = []
@@ -407,7 +410,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
 
                 try:
                     summary = post_process_summary(hf_client.apply(first_post))
-                except ValueError:
+                except (ValueError, OutOfMemoryError):
                     summary = summarize(target_txt_path, max_length = 7, default = caption)
 
                 vk_client.post(
@@ -597,7 +600,7 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int,
 
 @main.command()
 @argument('url', type = str, default = 'https://2ch.hk/b/catalog.json')
-@option('--root', '-r', help = 'folder, in which pulled images will be stored', default = '/tmp/much-images')
+@option('--root', '-r', help = 'folder, in which pulled images will be stored', default = POSTERS_DEFAULT_ROOT)
 def pull_images(url: str, root: str):
     if not os.path.isdir(root):
         os.makedirs(root)
@@ -615,7 +618,7 @@ def pull_images(url: str, root: str):
 
 @main.command()
 @argument('thread', type = str)
-@option('--root', '-r', help = 'folder, in which pulled images are stored', default = '/tmp/much-images')
+@option('--root', '-r', help = 'folder, in which pulled images are stored', default = POSTERS_DEFAULT_ROOT)
 def drop_image(thread: str, root: str):
     removed_path = drop_original_poster(thread, root)
 
@@ -631,7 +634,7 @@ def drop_image(thread: str, root: str):
 @option('--index', '-i', type = str, default = 'index.tsv')
 @option('--batch-size', '-b', help = 'how many threads to put in a folder', default = 10000)
 @option('--top-n', '-n', type = int, help = 'handle only first n entries', default = None)
-@option('--poster-root', '-r', type = str, default = '/tmp/much-images')
+@option('--poster-root', '-r', type = str, default = POSTERS_DEFAULT_ROOT)
 def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_root: str):
     last_records_list = read_csv(index, sep = '\t').to_dict(orient = 'records') if os.path.isfile(index) else None
     last_records = None if last_records_list is None else {
