@@ -10,6 +10,7 @@ from .ImageSearchEngine import ImageSearchEngine
 
 
 TIMEOUT = 3600
+N_ATTEMPTS = 3
 
 
 def make_attachments(audio: int, media_owner: int, poster: int, video: int):
@@ -178,7 +179,7 @@ class VkClient:
             raise ValueError(f'Unexpected response from server when uploading audio: {response.content}')
         raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')
 
-    def _post(self, caption: str, audio: int, title: str = None, poster: str = None, verbose: bool = False):
+    def _post(self, caption: str, audio: int, title: str = None, poster: str = None, verbose: bool = False, attempt_index: int = 0):
         owner = self.post_owner
         album = self.post_album
         token = self.post_token
@@ -258,6 +259,9 @@ class VkClient:
                     hash_ = None if poster_is_video else response_json['hash']
 
                     if not poster_is_video and len(photos_list) < 1:
+                        if attempt_index < N_ATTEMPTS:
+                            return self._post(caption, audio, title, poster, verbose, attempt_index + 1)
+
                         if poster is not None:
                             poster = None
 
@@ -295,6 +299,9 @@ class VkClient:
                             try:
                                 response_json = response.json()['response']
                             except KeyError:
+                                if attempt_index < N_ATTEMPTS:
+                                    return self._post(caption, audio, title, poster, verbose, attempt_index + 1)
+
                                 if poster is not None:
                                     poster = None
 
@@ -326,6 +333,10 @@ class VkClient:
 
                         raise ValueError(f'Unexpected response from server when creating a post: {response.content} for thread {caption}')
                     raise ValueError(f'Unexpected response from server when saving uploaded photo: {response.content} for thread {caption}')
+
+                if attempt_index < N_ATTEMPTS:
+                    return self._post(caption, audio, title, poster, verbose, attempt_index + 1)
+
                 if poster is not None:
                     poster = None
 
