@@ -53,10 +53,11 @@ def parse_post_id(post_id: str):
 
 
 class Post:
-    def __init__(self, text: str, id: str, mentions: list[Post] = None):
+    def __init__(self, text: str, id: str, mentions: list[Post] = None, n_parents: int = 0):
         self.text = text
         self.id = id
         self.mentions = [] if mentions is None else mentions
+        self.n_parents = n_parents
 
     def __repr__(self):
         return self.description
@@ -128,7 +129,7 @@ class Post:
         # for mention in html.find('div', id=f'refmap-{key}').find_all('a', {'class': 'post-reply-link'}):
         #     print(mention['data-num'])
 
-        return mentions, cls(text = text, id = key)
+        return mentions, cls(text = text, id = key, n_parents = 0 if mentions is None else len(mentions))
 
     @classmethod
     def from_html(cls, html: BeautifulSoup):

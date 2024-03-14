@@ -334,5 +334,5 @@ class VkClient:
 
                     links.extend(self.search_engine.search(caption))
                 # raise ValueError(f'Unexpected response from server when uploading photo: {response.content}')
-            raise ValueError(f'Exhausted poster candidates for thread {caption}')
+            raise ValueError(f'Exhausted {len(links)} poster candidates for thread {caption}')
         raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content} for thread {caption}')

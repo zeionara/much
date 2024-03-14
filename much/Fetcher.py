@@ -98,39 +98,45 @@ class Fetcher:
 
         i = 0
 
-        while response is None or ((response.status_code != 200 or (len(response.text) < 1))):
+        while response is None or (response is not True and (response.status_code != 200 or (len(response.text) < 1))):
             i += 1
 
-            try:
-                response = get(url, timeout = 60)
-            except SSLError:
-                print(f'Encountered SSLError when fetching {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
-                sleep(SSL_ERROR_DELAY)
-                print(f'Retrying to fetch {url}...')
-                continue
-            except ConnectionError:
-                print(f'Encountered ConnectionError when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
-                sleep(SSL_ERROR_DELAY)
-                print(f'Retrying to fetch url {url}')
-                continue
-            except ChunkedEncodingError:
-                print(f'Encountered ChunkedEncodingError when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
-                sleep(SSL_ERROR_DELAY)
-                print(f'Retrying to fetch url {url}')
-                continue
-            except ReadTimeout:
-                print(f'Encountered ReadTimeout when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
-                sleep(SSL_ERROR_DELAY)
-                print(f'Retrying to fetch url {url}')
-                continue
+            if url.startswith('http'):
+                try:
+                    response = get(url, timeout = 60)
+                except SSLError:
+                    print(f'Encountered SSLError when fetching {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
+                    sleep(SSL_ERROR_DELAY)
+                    print(f'Retrying to fetch {url}...')
+                    continue
+                except ConnectionError:
+                    print(f'Encountered ConnectionError when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
+                    sleep(SSL_ERROR_DELAY)
+                    print(f'Retrying to fetch url {url}')
+                    continue
+                except ChunkedEncodingError:
+                    print(f'Encountered ChunkedEncodingError when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
+                    sleep(SSL_ERROR_DELAY)
+                    print(f'Retrying to fetch url {url}')
+                    continue
+                except ReadTimeout:
+                    print(f'Encountered ReadTimeout when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
+                    sleep(SSL_ERROR_DELAY)
+                    print(f'Retrying to fetch url {url}')
+                    continue
 
-            if response is None:
-                print(f'Got none response when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
-                sleep(SSL_ERROR_DELAY)
-                print(f'Retrying to fetch url {url}')
-                continue
+                if response is None:
+                    print(f'Got none response when fetching url {url}. Waiting for {SSL_ERROR_DELAY} seconds before retrying...')
+                    sleep(SSL_ERROR_DELAY)
+                    print(f'Retrying to fetch url {url}')
+                    continue
 
-            page = response.text
+                page = response.text
+            else:
+                with open(url, 'r', encoding = 'utf-8') as file:
+                    page = file.read()
+                    response = True
+
             soup = BeautifulSoup(page, features = 'html.parser')
 
             if append_post(soup.find('div', {'class': ('post', 'oppost')})) is None:
@@ -168,9 +174,11 @@ class Fetcher:
 
         topics = []
 
-        for post in sorted(id_to_post.values(), key = lambda post: (post.length, len(post.text)), reverse = True):
+        for post in sorted(id_to_post.values(), key = lambda post: (post.length, -post.n_parents, len(post.text)), reverse = True):
 
             if post.id in ids and post.size >= min_post_length:
+
+                # print(post.length, post.text, post.n_parents)
 
                 # if post.id == 52234659:
                 #     print(post.short_description)
