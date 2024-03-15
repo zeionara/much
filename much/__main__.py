@@ -63,6 +63,7 @@ NEWLINE = '\n'
 VK_API_VERSION = '5.199'
 
 POSTERS_DEFAULT_ROOT = '/tmp/much-images'
+MIN_SUMMARY_LENGTH = 40
 
 empty_list_lock = Lock()
 
@@ -382,7 +383,9 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
 
             if not os.path.isfile(target_txt_path):
                 for batch_path in os.listdir(threads):
+                    print(batch_path)
                     for file in os.listdir(batch_full_path := os.path.join(threads, batch_path)):
+                        print(file, thread)
                         if file.startswith(thread):
                             copyfile(os.path.join(batch_full_path, file), target_txt_path)
                             found_thread = True
@@ -390,9 +393,9 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                     if found_thread:
                         break
 
-            if not found_thread:
-                print(f'Can\'t find thread {thread}. Skipping...')
-                continue
+                if not found_thread:
+                    print(f'Can\'t find thread {thread}. Skipping...')
+                    continue
 
             with open(target_txt_path, 'r', encoding = 'utf-8') as file:
                 first_post = file.readline()[:-1]
@@ -409,7 +412,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                 # upload_audio(target_mp3_path, caption, artist, token, token_owner, audio_owner, api_version = VK_API_VERSION)
 
                 try:
-                    summary = post_process_summary(hf_client.apply(first_post))
+                    summary = first_post if len(first_post) <= MIN_SUMMARY_LENGTH else post_process_summary(hf_client.apply(first_post))
                 except (ValueError, OutOfMemoryError):
                     summary = summarize(target_txt_path, max_length = 7, default = caption)
 

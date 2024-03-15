@@ -122,7 +122,11 @@ class VkClient:
             if response.status_code == 200:
                 response_json = response.json()
 
-                audio = response_json['audio']
+                try:
+                    audio = response_json['audio']
+                except KeyError:
+                    raise ValueError(f'Missing "audio" field in the response body: {response_json}')
+
                 server = response_json['server']
                 hash_ = response_json['hash']
 
