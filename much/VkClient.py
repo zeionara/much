@@ -8,6 +8,8 @@ from rr.util import is_image, is_video
 
 from .ImageSearchEngine import ImageSearchEngine
 
+from .VkAudioUploader import VkAudioUploader
+
 
 TIMEOUT = 3600
 N_ATTEMPTS = 3
@@ -78,11 +80,14 @@ class VkClient:
 
         self.search_engine = ImageSearchEngine()
 
+        self.audio_uploader = VkAudioUploader.make()
+
     def post(self, path: str, title: str, caption: str, artist: str = None, message: str = None, poster: str = None, file: int = None, verbose: bool = False):
         if verbose:
             print('Uploading audio...')
 
-        audio = self._upload_audio(path, title, artist)
+        # audio = self._upload_audio(path, title, artist)
+        audio = self.audio_uploader.upload(path, title, artist)
         # audio = 456239121
 
         if verbose:
@@ -96,97 +101,97 @@ class VkClient:
 
         return post_id
 
-    def _upload_audio(self, path: str, title: str, artist: str = None):
-        token = self.audio_token
-        token_owner = self.audio_owner
-        audio_owner = self.post_owner
+    # def _upload_audio(self, path: str, title: str, artist: str = None):
+    #     token = self.audio_token
+    #     token_owner = self.audio_owner
+    #     audio_owner = self.post_owner
 
-        api_version = self.api_version
+    #     api_version = self.api_version
 
-        response = postt(
-            url = 'https://api.vk.com/method/audio.getUploadServer',
-            data = {
-                'access_token': token,
-                'v': api_version
-            },
-            timeout = TIMEOUT
-        )
+    #     response = postt(
+    #         url = 'https://api.vk.com/method/audio.getUploadServer',
+    #         data = {
+    #             'access_token': token,
+    #             'v': api_version
+    #         },
+    #         timeout = TIMEOUT
+    #     )
 
-        if response.status_code == 200:
-            upload_url = response.json()['response']['upload_url']
+    #     if response.status_code == 200:
+    #         upload_url = response.json()['response']['upload_url']
 
-            with open(path, 'rb') as file:
-                response = postt(
-                    url = upload_url,
-                    files = {
-                        'file': (path, file)
-                    },
-                    timeout = TIMEOUT
-                )
+    #         with open(path, 'rb') as file:
+    #             response = postt(
+    #                 url = upload_url,
+    #                 files = {
+    #                     'file': (path, file)
+    #                 },
+    #                 timeout = TIMEOUT
+    #             )
 
-            if response.status_code == 200:
-                response_json = response.json()
+    #         if response.status_code == 200:
+    #             response_json = response.json()
 
-                if 'audio' not in response_json:
-                    raise ValueError(f'Missing "audio" field in the response body: {response_json}')
+    #             if 'audio' not in response_json:
+    #                 raise ValueError(f'Missing "audio" field in the response body: {response_json}')
 
-                audio = response_json['audio']
+    #             audio = response_json['audio']
 
-                server = response_json['server']
-                hash_ = response_json['hash']
+    #             server = response_json['server']
+    #             hash_ = response_json['hash']
 
-                response = postt(
-                    url = 'https://api.vk.com/method/audio.save',
-                    data = {
-                        'access_token': token,
-                        'audio': audio,
-                        'server': server,
-                        'hash': hash_,
-                        'v': api_version,
-                        'artist': artist,
-                        'title': title
-                    },
-                    timeout = TIMEOUT
-                )
+    #             response = postt(
+    #                 url = 'https://api.vk.com/method/audio.save',
+    #                 data = {
+    #                     'access_token': token,
+    #                     'audio': audio,
+    #                     'server': server,
+    #                     'hash': hash_,
+    #                     'v': api_version,
+    #                     'artist': artist,
+    #                     'title': title
+    #                 },
+    #                 timeout = TIMEOUT
+    #             )
 
-                if response.status_code == 200:
-                    response_json = response.json()['response']
+    #             if response.status_code == 200:
+    #                 response_json = response.json()['response']
 
-                    if audio_owner is not None and token_owner != audio_owner:
-                        response = postt(
-                            url = 'https://api.vk.com/method/audio.add',
-                            data = {
-                                'access_token': token,
-                                'audio_id': (audio_id := response_json['id']),
-                                'owner_id': (owner_id := response_json['owner_id']),
-                                'group_id': abs(audio_owner),
-                                'v': api_version
-                            },
-                            timeout = TIMEOUT
-                        )
+    #                 if audio_owner is not None and token_owner != audio_owner:
+    #                     response = postt(
+    #                         url = 'https://api.vk.com/method/audio.add',
+    #                         data = {
+    #                             'access_token': token,
+    #                             'audio_id': (audio_id := response_json['id']),
+    #                             'owner_id': (owner_id := response_json['owner_id']),
+    #                             'group_id': abs(audio_owner),
+    #                             'v': api_version
+    #                         },
+    #                         timeout = TIMEOUT
+    #                     )
 
-                        if response.status_code == 200:
-                            final_audio_id = response.json().get('response')
+    #                     if response.status_code == 200:
+    #                         final_audio_id = response.json().get('response')
 
-                            response = postt(
-                                url = 'https://api.vk.com/method/audio.delete',
-                                data = {
-                                    'audio_id': audio_id,
-                                    'owner_id': owner_id,
-                                    'access_token': token,
-                                    'v': api_version
-                                },
-                                timeout = TIMEOUT
-                            )
+    #                         response = postt(
+    #                             url = 'https://api.vk.com/method/audio.delete',
+    #                             data = {
+    #                                 'audio_id': audio_id,
+    #                                 'owner_id': owner_id,
+    #                                 'access_token': token,
+    #                                 'v': api_version
+    #                             },
+    #                             timeout = TIMEOUT
+    #                         )
 
-                            if response.status_code == 200:
-                                # print(response.json())
-                                return final_audio_id
-                            raise ValueError(f'Unexpected response from server when deleting audio from the user\'s list: {response.content}')
-                        raise ValueError(f'Unexpected response from server when adding audio to the group: {response.content}')
-                raise ValueError(f'Unexpected response from server when saving uploaded audio: {response.content} {response.status_code}')
-            raise ValueError(f'Unexpected response from server when uploading audio: {response.content}')
-        raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')
+    #                         if response.status_code == 200:
+    #                             # print(response.json())
+    #                             return final_audio_id
+    #                         raise ValueError(f'Unexpected response from server when deleting audio from the user\'s list: {response.content}')
+    #                     raise ValueError(f'Unexpected response from server when adding audio to the group: {response.content}')
+    #             raise ValueError(f'Unexpected response from server when saving uploaded audio: {response.content} {response.status_code}')
+    #         raise ValueError(f'Unexpected response from server when uploading audio: {response.content}')
+    #     raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')
 
     def _post(self, caption: str, audio: int, title: str = None, poster: str = None, doc: int = None, verbose: bool = False, attempt_index: int = 0):
         owner = self.post_owner

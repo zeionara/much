@@ -1,28 +1,25 @@
 from requests import post
 from os import environ as env
 
-
-URL_TEMPLATE = 'https://api.vk.com/method/{method}'
-
-TIMEOUT = 3600
+from .VkUploader import VkUploader, URL_TEMPLATE, TIMEOUT, API_VERSION
 
 
-class VkFileUploader:
+class VkFileUploader(VkUploader):
     def __init__(
         self,
         token: str = None,
         owner: int = None,
-        api_version: str = '5.199'
+        api_version: str = API_VERSION
     ):
         self.token = token
         self.owner = owner
         self.api_version = api_version
 
-    def _validate_response(self, message, response, validate):
-        if (status_code := response.status_code) != 200 or not validate(body := response.json()):
-            raise ValueError(f'{message} (status = {status_code}): {body}')
+    # def _validate_response(self, message, response, validate):
+    #     if (status_code := response.status_code) != 200 or not validate(body := response.json()):
+    #         raise ValueError(f'{message} (status = {status_code}): {body}')
 
-        return body
+    #     return body
 
     def _get_upload_server(self):
         response = post(

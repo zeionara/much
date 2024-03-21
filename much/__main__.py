@@ -39,6 +39,7 @@ from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
 from .VkClient import VkClient
 from .VkFileUploader import VkFileUploader
+from .VkAudioUploader import VkAudioUploader
 from .ArtistSampler import ArtistSampler
 # from .HuggingFaceClient import HuggingFaceClient, Task
 # from .folder import cached_folder
@@ -217,8 +218,10 @@ def search(query: str):
 @main.command()
 @argument('path', type = str)
 def upload_file(path: str):
-    uploader = VkFileUploader.make()
-    uploader.upload(path, title = 'Foo bar', tags = ['qux', 'quux'])
+    # uploader = VkFileUploader.make()
+    # uploader.upload(path, title = 'Foo bar', tags = ['qux', 'quux'])
+
+    VkAudioUploader.make().upload(path, title = 'Blah blah', artist = 'Foo bar')
 
 
 @main.command()
