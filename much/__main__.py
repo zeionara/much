@@ -38,6 +38,7 @@ from .util import normalize, SPACE, pull_original_poster, drop_original_poster, 
 from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
 from .VkClient import VkClient
+from .VkFileUploader import VkFileUploader
 from .ArtistSampler import ArtistSampler
 # from .HuggingFaceClient import HuggingFaceClient, Task
 # from .folder import cached_folder
@@ -214,6 +215,13 @@ def search(query: str):
 
 
 @main.command()
+@argument('path', type = str)
+def upload_file(path: str):
+    uploader = VkFileUploader.make()
+    uploader.upload(path, title = 'Foo bar', tags = ['qux', 'quux'])
+
+
+@main.command()
 @argument('name', type = str)
 @option('--artist', '-a', type = str, default = 'None')
 @option('--root', '-r', type = str, default = 'audible')
@@ -365,6 +373,8 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
     # 2. Check which threads are no longer available, and alternate them
 
     vk_client = VkClient()
+    file_uploader = VkFileUploader.make()
+
     hf_client = HuggingFaceClient(hf_cache = 'hf-cache', local = True, device = 0)
     artist_sampler = ArtistSampler()
 
@@ -383,9 +393,9 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
 
             if not os.path.isfile(target_txt_path):
                 for batch_path in os.listdir(threads):
-                    print(batch_path)
+                    # print(batch_path)
                     for file in os.listdir(batch_full_path := os.path.join(threads, batch_path)):
-                        print(file, thread)
+                        # print(file, thread)
                         if file.startswith(thread):
                             copyfile(os.path.join(batch_full_path, file), target_txt_path)
                             found_thread = True
@@ -416,6 +426,8 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                 except (ValueError, OutOfMemoryError):
                     summary = summarize(target_txt_path, max_length = 7, default = caption)
 
+                file = file_uploader.upload(target_txt_path, summary, tags = ['2ch', 'anon', 'thread'])
+
                 vk_client.post(
                     path = target_mp3_path,
                     title = summary,
@@ -423,6 +435,7 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                     artist = artist_sampler.sample(),
                     message = first_post,
                     poster = find_original_poster(thread, poster_root),
+                    file = file,
                     verbose = verbose
                 )
         else:

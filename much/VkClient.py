@@ -13,10 +13,15 @@ TIMEOUT = 3600
 N_ATTEMPTS = 3
 
 
-def make_attachments(audio: int, media_owner: int, poster: int, video: int):
+def make_attachments(audio: int, media_owner: int, poster: int, video: int, doc: int = None):
+    if doc is None:
+        if video is None:
+            return f"audio{media_owner}_{audio},photo{media_owner}_{poster}"
+        return f"audio{media_owner}_{audio},video{media_owner}_{video}"
+
     if video is None:
-        return f"audio{media_owner}_{audio},photo{media_owner}_{poster}"
-    return f"audio{media_owner}_{audio},video{media_owner}_{video}"
+        return f"audio{media_owner}_{audio},photo{media_owner}_{poster},doc{media_owner}_{doc}"
+    return f"audio{media_owner}_{audio},video{media_owner}_{video},doc{media_owner}_{doc}"
 
 
 class VkClient:
@@ -73,7 +78,7 @@ class VkClient:
 
         self.search_engine = ImageSearchEngine()
 
-    def post(self, path: str, title: str, caption: str, artist: str = None, message: str = None, poster: str = None, verbose: bool = False):
+    def post(self, path: str, title: str, caption: str, artist: str = None, message: str = None, poster: str = None, file: int = None, verbose: bool = False):
         if verbose:
             print('Uploading audio...')
 
@@ -84,7 +89,7 @@ class VkClient:
             print(f'Uploaded audio {audio}, creating post...')
 
         # post_id = self._post(caption, audio, message, poster, verbose)
-        post_id = self._post(caption if title is None else title, audio, message, poster, verbose)
+        post_id = self._post(caption if title is None else title, audio, message, poster, file, verbose)
 
         if verbose:
             print(f'Created post {post_id}')
@@ -122,10 +127,10 @@ class VkClient:
             if response.status_code == 200:
                 response_json = response.json()
 
-                try:
-                    audio = response_json['audio']
-                except KeyError:
+                if 'audio' not in response_json:
                     raise ValueError(f'Missing "audio" field in the response body: {response_json}')
+
+                audio = response_json['audio']
 
                 server = response_json['server']
                 hash_ = response_json['hash']
@@ -183,7 +188,7 @@ class VkClient:
             raise ValueError(f'Unexpected response from server when uploading audio: {response.content}')
         raise ValueError(f'Unexpected response from server when obtaining upload url: {response.content}')
 
-    def _post(self, caption: str, audio: int, title: str = None, poster: str = None, verbose: bool = False, attempt_index: int = 0):
+    def _post(self, caption: str, audio: int, title: str = None, poster: str = None, doc: int = None, verbose: bool = False, attempt_index: int = 0):
         owner = self.post_owner
         album = self.post_album
         token = self.post_token
@@ -264,7 +269,7 @@ class VkClient:
 
                     if not poster_is_video and len(photos_list) < 1:
                         if attempt_index < N_ATTEMPTS:
-                            return self._post(caption, audio, title, poster, verbose, attempt_index + 1)
+                            return self._post(caption, audio, title, poster, doc, verbose, attempt_index + 1)
 
                         if poster is not None:
                             poster = None
@@ -304,7 +309,7 @@ class VkClient:
                                 response_json = response.json()['response']
                             except KeyError:
                                 if attempt_index < N_ATTEMPTS:
-                                    return self._post(caption, audio, title, poster, verbose, attempt_index + 1)
+                                    return self._post(caption, audio, title, poster, doc, verbose, attempt_index + 1)
 
                                 if poster is not None:
                                     poster = None
@@ -325,8 +330,9 @@ class VkClient:
                                 'owner_id': owner,
                                 'from_group': 1,
                                 'message': title,
-                                'attachments': make_attachments(audio, owner, photo_id, video_id),
+                                'attachments': make_attachments(audio, owner, photo_id, video_id, doc),
                                 'access_token': token,
+                                'donut_paid_duration': 604800,  # 1 week
                                 'v': api_version
                             },
                             timeout = TIMEOUT
@@ -339,7 +345,7 @@ class VkClient:
                     raise ValueError(f'Unexpected response from server when saving uploaded photo: {response.content} for thread {caption}')
 
                 if attempt_index < N_ATTEMPTS:
-                    return self._post(caption, audio, title, poster, verbose, attempt_index + 1)
+                    return self._post(caption, audio, title, poster, doc, verbose, attempt_index + 1)
 
                 if poster is not None:
                     poster = None
