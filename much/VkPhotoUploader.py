@@ -4,7 +4,7 @@ from io import BytesIO, BufferedReader
 
 from requests import post, get
 
-from rr.util import is_url
+from rr.util import is_url, retry
 
 from .VkUploader import VkUploader, URL_TEMPLATE, TIMEOUT, API_VERSION
 
@@ -22,6 +22,7 @@ class VkPhotoUploader(VkUploader):
         self.album = album
         self.api_version = api_version
 
+    @retry(times = 3)
     def _get_upload_server(self):
         response = post(
             URL_TEMPLATE.format(method = 'photos.getUploadServer'),
@@ -38,6 +39,7 @@ class VkPhotoUploader(VkUploader):
 
         return body['response']['upload_url']
 
+    @retry(times = 3)
     def _upload(self, url: str, path: str):
         def get_response(file):
             return post(
@@ -59,6 +61,7 @@ class VkPhotoUploader(VkUploader):
 
         return body['photos_list'], body['server'], body['hash']
 
+    @retry(times = 3)
     def _save(self, photos_list, server, hash_, caption: str = None):
         response = post(
             URL_TEMPLATE.format(method = 'photos.save'),

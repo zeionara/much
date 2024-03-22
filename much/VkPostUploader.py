@@ -2,6 +2,8 @@ from os import environ as env
 
 from requests import post
 
+from rr.util import retry
+
 from .VkUploader import VkUploader, URL_TEMPLATE, TIMEOUT, API_VERSION
 from .PosterUploader import AttachmentType
 
@@ -17,6 +19,7 @@ class VkPostUploader(VkUploader):
         self.owner = owner
         self.api_version = api_version
 
+    @retry(times = 3)
     def _upload(self, title: str, attachments: str):
         response = post(
             URL_TEMPLATE.format(method = 'wall.post'),

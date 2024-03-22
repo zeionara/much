@@ -1,6 +1,8 @@
 from requests import post
 from os import environ as env
 
+from rr.util import retry
+
 from .VkUploader import VkUploader, URL_TEMPLATE, TIMEOUT, API_VERSION
 
 
@@ -17,6 +19,7 @@ class VkAudioUploader(VkUploader):
         self.audio_owner = audio_owner
         self.api_version = api_version
 
+    @retry(times = 3)
     def _get_upload_server(self):
         response = post(
             URL_TEMPLATE.format(method = 'audio.getUploadServer'),
@@ -31,6 +34,7 @@ class VkAudioUploader(VkUploader):
 
         return body['response']['upload_url']
 
+    @retry(times = 3)
     def _upload(self, url: str, path: str):
         with open(path, 'rb') as file:
             response = post(
@@ -45,6 +49,7 @@ class VkAudioUploader(VkUploader):
 
         return body['audio'], body['server'], body['hash']
 
+    @retry(times = 3)
     def _save(self, audio: int, server: str, hash_: str, title: str = None, artist: str = None):
         response = post(
             URL_TEMPLATE.format(method = 'audio.save'),
@@ -65,6 +70,7 @@ class VkAudioUploader(VkUploader):
 
         return body_response['url'], body_response['id'], body_response['owner_id']
 
+    @retry(times = 3)
     def _add(self, audio_id: int, owner_id: int):
         response = post(
             URL_TEMPLATE.format(method = 'audio.add'),
@@ -82,6 +88,7 @@ class VkAudioUploader(VkUploader):
 
         return body['response']  # returns audio id
 
+    @retry(times = 3)
     def _delete(self, audio_id: int, owner_id: int):
         response = post(
             URL_TEMPLATE.format(method = 'audio.delete'),

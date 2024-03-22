@@ -27,6 +27,7 @@ from torch.cuda import OutOfMemoryError
 # from vk_api import VkApi
 
 from rr import HuggingFaceClient, Task, post_process_summary, truncate_translation
+from rr.util import retry
 from rr.alternator import _alternate
 
 from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
@@ -217,13 +218,32 @@ def search(query: str):
         print(url)
 
 
+class Foo:
+    def __init__(self):
+        self.foo = 'foo'
+        self.i = 1
+
+    @retry(times = 3)
+    def wait_and_rise(self):
+        print('waiting')
+
+        sleep(2)
+
+        if self.i > 1:
+            return self.foo
+
+        self.i += 1
+        raise ValueError('foo')
+
+
 @main.command()
 @argument('path', type = str)
 def upload_file(path: str):
     # uploader = VkFileUploader.make()
     # uploader.upload(path, title = 'Foo bar', tags = ['qux', 'quux'])
 
-    VkAudioUploader.make().upload(path, title = 'Blah blah', artist = 'Foo bar')
+    # VkAudioUploader.make().upload(path, title = 'Blah blah', artist = 'Foo bar')
+    print(Foo().wait_and_rise())
 
     # photo_id = VkPhotoUploader.make().upload(path, 'Foo bar baz', verbose = True)
     # video_id = VkVideoUploader.make().upload(path, 'Foo bar baz', 'qux quux quuz', verbose = True)

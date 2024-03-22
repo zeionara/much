@@ -2,6 +2,7 @@ from os import environ as env
 
 from requests import post
 
+from rr.util import retry
 from .VkUploader import VkUploader, URL_TEMPLATE, TIMEOUT, API_VERSION
 
 
@@ -16,6 +17,7 @@ class VkVideoUploader(VkUploader):
         self.owner = owner
         self.api_version = api_version
 
+    @retry(times = 3)
     def _get_upload_server(self, caption: str, description: str):
         response = post(
             URL_TEMPLATE.format(method = 'video.save'),
@@ -34,6 +36,7 @@ class VkVideoUploader(VkUploader):
 
         return body['response']['upload_url']
 
+    @retry(times = 3)
     def _upload(self, url: str, path: str):
         with open(path, 'rb') as file:
             response = post(
@@ -48,6 +51,7 @@ class VkVideoUploader(VkUploader):
 
         return body['direct_link'], body['video_id'], body['owner_id']
 
+    @retry(times = 3)
     def upload(self, path: str, caption: str, description: str, verbose: bool = False):
         if verbose:
             print('Getting upload url...')
