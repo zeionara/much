@@ -437,18 +437,33 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                 except (ValueError, OutOfMemoryError):
                     summary = summarize(target_txt_path, max_length = 7, default = caption)
 
-                file = file_uploader.upload(target_txt_path, summary, tags = ['2ch', 'anon', 'thread'])
+                # post_id = vk_client.post2(
+                vk_client.post2(
+                    audio_path = target_mp3_path,
+                    poster_path = find_original_poster(thread, poster_root),
+                    file_path = target_txt_path,
 
-                vk_client.post(
-                    path = target_mp3_path,
-                    title = summary,
-                    caption = caption,
+                    caption = summary,
+                    description = first_post,
                     artist = artist_sampler.sample(),
-                    message = first_post,
-                    poster = find_original_poster(thread, poster_root),
-                    file = file,
+                    file_tags = ['2ch', 'anon', 'thread'],
                     verbose = verbose
                 )
+
+                # print(post_id)
+
+                # file = file_uploader.upload(target_txt_path, summary, tags = ['2ch', 'anon', 'thread'])
+
+                # vk_client.post(
+                #     path = target_mp3_path,
+                #     title = summary,
+                #     caption = caption,
+                #     artist = artist_sampler.sample(),
+                #     message = first_post,
+                #     poster = find_original_poster(thread, poster_root),
+                #     file = file,
+                #     verbose = verbose
+                # )
         else:
             output_entries.append(entry)
 

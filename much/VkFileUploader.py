@@ -69,7 +69,7 @@ class VkFileUploader(VkUploader):
 
     def upload(self, path: str, title: str = None, tags: list[str] = None, verbose: bool = False):
         if verbose:
-            print('Getting upload url...')
+            print('Getting file upload url...')
 
         url = self._get_upload_server()
 

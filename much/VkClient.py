@@ -9,6 +9,9 @@ from rr.util import is_image, is_video
 from .ImageSearchEngine import ImageSearchEngine
 
 from .VkAudioUploader import VkAudioUploader
+from .VkFileUploader import VkFileUploader
+from .PosterUploader import PosterUploader
+from .VkPostUploader import VkPostUploader
 
 
 TIMEOUT = 3600
@@ -81,6 +84,32 @@ class VkClient:
         self.search_engine = ImageSearchEngine()
 
         self.audio_uploader = VkAudioUploader.make()
+        self.file_uploader = VkFileUploader.make()
+        self.poster_uploader = PosterUploader()
+        self.post_uploader = VkPostUploader.make()
+
+    def post2(self, audio_path: str, caption: str, artist: str, poster_path: str = None, file_path: int = None, description: str = None, file_tags: list[str] = None, verbose: bool = False):
+        audio = self.audio_uploader.upload(audio_path, caption, artist, verbose)
+
+        if poster_path is None:
+            poster, poster_type = None, None
+
+            for poster_path_ in self.search_engine.search(caption):
+                try:
+                    poster, poster_type = self.poster_uploader.upload(poster_path_, caption, description, verbose)
+                except ValueError:
+                    pass
+                else:
+                    break
+        else:
+            poster, poster_type = self.poster_uploader.upload(poster_path, caption, description, verbose)
+
+        if file_path is None:
+            file = None
+        else:
+            file = self.file_uploader.upload(file_path, caption, file_tags, verbose)
+
+        return self.post_uploader.upload(caption, audio, file, poster, poster_type, verbose)
 
     def post(self, path: str, title: str, caption: str, artist: str = None, message: str = None, poster: str = None, file: int = None, verbose: bool = False):
         if verbose:
