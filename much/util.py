@@ -3,7 +3,7 @@ import re
 from math import floor
 from pathlib import Path
 
-from requests import get
+from requests import get, post as requests_post
 
 TIMEOUT = 3600
 
@@ -18,6 +18,34 @@ IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg')
 VIDEO_EXTENSIONS = ('.mp4', '.webm')
 
 ALLOWED_EXTENSIONS = (*IMAGE_EXTENSIONS, *VIDEO_EXTENSIONS)
+
+CAPTCHA_ERROR_CODE = 14
+
+
+def post(url: str, data: dict, timeout: int = None, interactive: bool = True):
+    def get_response(captcha_key: str = None, captcha_sid: str = None):
+        if captcha_key is not None and captcha_sid is not None:
+            data_ = dict(data)
+
+            data_['captcha_key'] = captcha_key
+            data_['captcha_sid'] = captcha_sid
+        else:
+            data_ = data
+
+        return requests_post(url, data = data_, timeout = timeout)
+
+    response = get_response()
+
+    if response.status_code == 200 and interactive:
+        response_json = response.json()
+
+        if (error := response_json.get('error')) is not None and error.get('error_code') == CAPTCHA_ERROR_CODE:
+            print(f'Captcha needed: {error.get("captcha_img")}')
+            captcha_key = input('> ')
+
+            response = get_response(captcha_key, error.get('captcha_sid'))
+
+    return response
 
 
 def normalize(string: str):

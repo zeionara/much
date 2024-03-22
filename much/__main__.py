@@ -372,7 +372,9 @@ def cleanup(root: str, username: str, password: str, batch_size: int, cookies: s
 @option('--artist-two', '-a2', help = 'second artist to say the replic', default = 'baya')
 @option('--poster-root', '-r', type = str, default = POSTERS_DEFAULT_ROOT)
 @option('--verbose', '-v', is_flag = True)
-def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_two: str, poster_root: str, verbose: bool):
+@option('--force', '-f', is_flag = True)
+@option('--interactive', '-i', is_flag = True)
+def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_two: str, poster_root: str, verbose: bool, force: bool, interactive: bool):
     input_entries = []
     output_entries = []
 
@@ -403,8 +405,8 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
 
     # 2. Check which threads are no longer available, and alternate them
 
-    vk_client = VkClient()
-    file_uploader = VkFileUploader.make()
+    vk_client = VkClient(interactive = interactive)
+    # file_uploader = VkFileUploader.make()
 
     hf_client = HuggingFaceClient(hf_cache = 'hf-cache', local = True, device = 0)
     artist_sampler = ArtistSampler()
@@ -441,8 +443,9 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
             with open(target_txt_path, 'r', encoding = 'utf-8') as file:
                 first_post = file.readline()[:-1]
 
-            if not os.path.isfile(target_mp3_path):
-                _alternate(target_txt_path, artist_one, artist_two)
+            if not os.path.isfile(target_mp3_path) or force:
+                if not os.path.isfile(target_mp3_path):
+                    _alternate(target_txt_path, artist_one, artist_two)
 
                 # artist = sample(['Анон', 'Анонимус', 'Чел', 'Пчел', 'Челик', 'Ананас', 'Анончик', 'Anonymous', 'Unknown', 'Unnamed', 'Incognito', 'Hidden', 'None', 'Nil', 'Null', 'Антон'], k = 1)[0]
                 # artist = artist_sampler.sample()

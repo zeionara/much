@@ -34,7 +34,8 @@ class VkClient:
         self, post_token: str = None, audio_token: str = None,
         post_owner: int = None, audio_owner: int = None,
         post_album: int = None,
-        api_version: str = '5.199'
+        api_version: str = '5.199',
+        interactive: bool = False
     ):
         if post_token is None:
             post_token = env.get('MUCH_VK_POST_TOKEN')
@@ -84,7 +85,7 @@ class VkClient:
         self.search_engine = ImageSearchEngine()
 
         self.audio_uploader = VkAudioUploader.make()
-        self.file_uploader = VkFileUploader.make()
+        self.file_uploader = VkFileUploader.make(interactive)
         self.poster_uploader = PosterUploader()
         self.post_uploader = VkPostUploader.make()
 
