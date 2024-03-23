@@ -110,7 +110,7 @@ class VkClient:
         else:
             file = self.file_uploader.upload(file_path, caption, file_tags, verbose)
 
-        return self.post_uploader.upload(caption, audio, file, poster, poster_type, verbose)
+        return self.post_uploader.upload(description, audio, file, poster, poster_type, verbose)
 
     def post(self, path: str, title: str, caption: str, artist: str = None, message: str = None, poster: str = None, file: int = None, verbose: bool = False):
         if verbose:
