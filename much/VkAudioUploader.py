@@ -12,12 +12,16 @@ class VkAudioUploader(VkUploader):
         token: str,
         token_owner: int,
         audio_owner: int,
+        playlist: int,
+        community_token: str,
         api_version: str = API_VERSION
     ):
         self.token = token
         self.token_owner = token_owner
         self.audio_owner = audio_owner
         self.api_version = api_version
+        self.playlist = playlist
+        self.community_token = community_token
 
     @retry(times = 3)
     def _get_upload_server(self):
@@ -105,6 +109,31 @@ class VkAudioUploader(VkUploader):
 
         return body['response']  # returns audio id
 
+    @retry(times = 3)
+    def _add_to_playlist(self, audio_id: int, owner_id: int):
+        playlist = self.playlist
+
+        # response = post(
+        post(
+            URL_TEMPLATE.format(method = 'audio.addToPlaylist'),
+            data = {
+                'audio_ids': [audio_id],
+                'owner_id': owner_id,
+                'playlist_id': playlist,
+                'access_token': self.community_token,
+                'v': self.api_version
+            },
+            timeout = TIMEOUT
+        )
+
+        # print(response.content)
+
+        # body = self._validate_response('Can\'t add uploaded audio to another owner', response, validate = lambda body: 'response' in body)
+
+        return audio_id
+
+        # return body['response']  # returns audio id
+
     def upload(self, path: str, title: str = None, artist: str = None, verbose: bool = False):
         if verbose:
             print('Getting upload url...')
@@ -136,7 +165,12 @@ class VkAudioUploader(VkUploader):
             self._delete(audio_id, owner_id)
 
             if verbose:
-                print(f'Deleted audio from {owner_id}')
+                print(f'Deleted audio from {owner_id}. Adding to playlist {self.playlist}...')
+
+            # self._add_to_playlist(audio_id, owner_id)
+
+            # if verbose:
+            #     print(f'Added audio {audio_id} to playlist {self.playlist}')
 
         return audio_id
 
@@ -152,9 +186,19 @@ class VkAudioUploader(VkUploader):
         if token_owner is None:
             raise ValueError('vk token owner is required to post content')
 
+        community_token = env.get('MUCH_VK_COMMUNITY_TOKEN')
+
+        if community_token is None:
+            raise ValueError('vk community token is required to add audios to playlist')
+
         audio_owner = env.get('MUCH_VK_POST_OWNER')
 
         if audio_owner is None:
             raise ValueError('vk audio owner is required to post content')
 
-        return cls(token, abs(int(token_owner)), abs(int(audio_owner)))
+        playlist = env.get('MUCH_VK_PLAYLIST')
+
+        if playlist is None:
+            raise ValueError('vk audio playlist is required')
+
+        return cls(token, abs(int(token_owner)), abs(int(audio_owner)), int(playlist), community_token)

@@ -238,15 +238,19 @@ class Foo:
 
 @main.command()
 @argument('path', type = str)
-def upload_file(path: str):
+@option('--verbose', '-v', is_flag = True)
+def upload_file(path: str, verbose: bool):
     # uploader = VkFileUploader.make()
     # uploader.upload(path, title = 'Foo bar', tags = ['qux', 'quux'])
 
     # VkAudioUploader.make().upload(path, title = 'Blah blah', artist = 'Foo bar')
-    print(Foo().wait_and_rise())
+    # print(Foo().wait_and_rise())
 
     # photo_id = VkPhotoUploader.make().upload(path, 'Foo bar baz', verbose = True)
     # video_id = VkVideoUploader.make().upload(path, 'Foo bar baz', 'qux quux quuz', verbose = True)
+
+    audio_id = VkAudioUploader.make().upload('foo.mp3', 'foo', 'foo', verbose)
+    print(audio_id)
 
     # print(photo_id)
     # print(video_id)
