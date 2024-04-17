@@ -14,6 +14,8 @@ class VkAudioUploader(VkUploader):
         audio_owner: int,
         playlist: int,
         community_token: str,
+        playlist_token: str,
+        playlist_owner: int,
         api_version: str = API_VERSION
     ):
         self.token = token
@@ -21,6 +23,8 @@ class VkAudioUploader(VkUploader):
         self.audio_owner = audio_owner
         self.api_version = api_version
         self.playlist = playlist
+        self.playlist_token = playlist_token
+        self.playlist_owner = playlist_owner
         self.community_token = community_token
 
     @retry(times = 3)
@@ -110,31 +114,130 @@ class VkAudioUploader(VkUploader):
         return body['response']  # returns audio id
 
     @retry(times = 3)
-    def _add_to_playlist(self, audio_id: int, owner_id: int):
-        playlist = self.playlist
-
-        # response = post(
-        post(
-            URL_TEMPLATE.format(method = 'audio.addToPlaylist'),
+    def _add_to_playlist_owner(self, audio_id: int):
+        response = post(
+            URL_TEMPLATE.format(method = 'audio.add'),
             data = {
-                'audio_ids': [audio_id],
-                'owner_id': owner_id,
-                'playlist_id': playlist,
-                'access_token': self.community_token,
+                'audio_id': audio_id,
+                'owner_id': -self.audio_owner,
+                'access_token': self.playlist_token,
                 'v': self.api_version
             },
             timeout = TIMEOUT
         )
 
+        body = self._validate_response('Can\'t add uploaded audio to another owner', response, validate = lambda body: 'response' in body)
+
+        return body['response']  # returns audio id
+
+    @retry(times = 3)
+    def _add_to_playlist(self, audio_id: int):
+        playlist = self.playlist
+        playlist_token = self.playlist_token
+        playlist_owner = self.playlist_owner
+
+        data = {
+            'audio_ids': f'{-self.audio_owner}_{audio_id}',
+            'owner_id': playlist_owner,
+            'playlist_id': playlist,
+            'access_token': playlist_token,
+            'v': self.api_version
+        }
+
+        response = post(
+            URL_TEMPLATE.format(method = 'audio.addToPlaylist'),
+            data = data,
+            timeout = TIMEOUT
+        )
+
         # print(response.content)
 
-        # body = self._validate_response('Can\'t add uploaded audio to another owner', response, validate = lambda body: 'response' in body)
+        body = self._validate_response(
+            'Can\'t add uplodaded audio to playlist',
+            response,
+            validate = lambda body: 'response' in body and len(body['response']) > 0 and 'audio_id' in body['response'][0]
+        )
 
-        return audio_id
+        return body['response'][0]['audio_id']
 
         # return body['response']  # returns audio id
 
+    # @retry(times = 3)
+    # def _add_to_playlist(self, audio_id: int):
+    #     playlist = self.playlist
+    #     playlist_token = self.playlist_token
+    #     playlist_owner = self.playlist_owner
+
+    #     # print(
+    #     #     {
+    #     #         'audio_ids': [audio_id],
+    #     #         # 'owner_id': playlist_owner,  # owner_id,
+    #     #         'playlist_id': playlist,
+    #     #         'access_token': playlist_token,
+    #     #         'v': self.api_version
+    #     #     }
+    #     # )
+
+    #     # print({
+    #     #     'audio_ids': f'{audio_id}',
+    #     #     'owner_id': playlist_owner + 1,  # owner_id,
+    #     #     'playlist_id': playlist,
+    #     #     'access_token': playlist_token,
+    #     #     'v': self.api_version
+    #     # })
+
+    #     # data = {
+    #     #     'owner_id': playlist_owner,  # owner_id,
+    #     #     'playlist_id': playlist,
+    #     #     'access_token': playlist_token,
+    #     #     'v': self.api_version
+    #     # }
+
+    #     # # post(
+    #     # response = post(
+    #     #     URL_TEMPLATE.format(method = 'audio.getPlaylistById'),
+    #     #     data = data,
+    #     #     timeout = TIMEOUT
+    #     # )
+
+    #     # print(response.content)
+
+    #     # return
+
+    #     data = {
+    #         'audio_ids': f'{playlist_owner}_{audio_id},{playlist_owner}_456240872',
+    #         'owner_id': playlist_owner,  # owner_id,
+    #         'playlist_id': playlist,
+    #         'access_token': playlist_token,
+    #         'v': self.api_version
+    #     }
+
+    #     print(data)
+
+    #     # post(
+    #     response = post(
+    #         URL_TEMPLATE.format(method = 'audio.addToPlaylist'),
+    #         data = data,
+    #         timeout = TIMEOUT
+    #     )
+
+    #     print(response.content)
+
+    #     # body = self._validate_response('Can\'t add uploaded audio to another owner', response, validate = lambda body: 'response' in body)
+
+    #     return audio_id
+
+    #     # return body['response']  # returns audio id
+
     def upload(self, path: str, title: str = None, artist: str = None, verbose: bool = False):
+        # self._add_to_playlist(456240873)
+
+        # self._add_to_playlist_owner(456240868, self.playlist_owner)
+        # print(self.audio_owner)
+        # self._add_to_playlist_owner(456240001, -224461031)
+
+        # return
+
         if verbose:
             print('Getting upload url...')
 
@@ -167,10 +270,17 @@ class VkAudioUploader(VkUploader):
             if verbose:
                 print(f'Deleted audio from {owner_id}. Adding to playlist {self.playlist}...')
 
+            playlist_audio_id = self._add_to_playlist(audio_id)
+
+            # print(playlist_audio_id)
+
+            # audio_id_for_playlist = self._add_to_playlist_owner(audio_id)
+            # self._add_to_playlist(audio_id_for_playlist)
+
             # self._add_to_playlist(audio_id, owner_id)
 
-            # if verbose:
-            #     print(f'Added audio {audio_id} to playlist {self.playlist}')
+            if verbose:
+                print(f'Added audio {audio_id} to playlist {self.playlist} as {playlist_audio_id}')
 
         return audio_id
 
@@ -201,4 +311,14 @@ class VkAudioUploader(VkUploader):
         if playlist is None:
             raise ValueError('vk audio playlist is required')
 
-        return cls(token, abs(int(token_owner)), abs(int(audio_owner)), int(playlist), community_token)
+        playlist_token = env.get('MUCH_VK_PLAYLIST_TOKEN')
+
+        if playlist_token is None:
+            raise ValueError('vk playlist token is required')
+
+        playlist_owner = env.get('MUCH_VK_PLAYLIST_OWNER')
+
+        if playlist_owner is None:
+            raise ValueError('vk playlist owner is required')
+
+        return cls(token, abs(int(token_owner)), abs(int(audio_owner)), int(playlist), community_token, playlist_token, int(playlist_owner))
