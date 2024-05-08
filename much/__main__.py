@@ -19,7 +19,7 @@ from requests.exceptions import ConnectionError, ChunkedEncodingError
 from flask import Flask
 # from vk_api import VkApi
 
-from rr.alternator import _alternate
+# from rr.alternator import _alternate
 
 from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
@@ -257,10 +257,12 @@ def list_empty_threads(threads: str):
 def sort(source: str, destination: str, batch_size: int, threads: str, pretend: bool):
     df = read_csv(source, sep = '\t')
 
-    if 'folder' not in df.columns:
-        df['folder'] = df.index.to_series().apply(lambda i: make_grabbed_folder_path(i, batch_size, threads))
-    else:
-        df['folder'] = df.folder.apply(lambda folder: os.path.join(threads, folder))
+    # if 'folder' not in df.columns:
+    #     df['folder'] = df.index.to_series().apply(lambda i: make_grabbed_folder_path(i, batch_size, threads))
+    # else:
+    #     df['folder'] = df.folder.apply(lambda folder: os.path.join(threads, folder))
+
+    df['folder'] = df.index.to_series().apply(lambda i: make_grabbed_folder_path(i, batch_size, threads))
 
     df.sort_values(by = ['thread'], inplace = True)
 
