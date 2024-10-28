@@ -1173,5 +1173,44 @@ def start_proxy(host: str, port: int, timeout: int, protocol: str):
     print(f'Starting proxy at {host}:{port}')
 
 
+@main.command()
+@option('--index', '-i', type = str, default = 'index.tsv')
+@option('--threads', '-t', type = str, default = 'threads')
+@option('--keywords', '-k', type = str, default = 'creepy-dict.txt')
+@option('--min-length', '-s', type = int, default = 1000)
+@option('--max-length', '-x', type = int, default = 3000)
+@option('--output-path', '-o', type = str, default = 'stories.txt')
+@option('--trace', '-r', is_flag = True)
+def collect_creepy_stories(index: str, threads: str, keywords: str, min_length: int, max_length: int, output_path: str, trace: bool):
+    content = read_csv(index, sep = '\t').dropna()
+
+    with open(keywords, 'r', encoding = 'utf-8') as file:
+        keywords = file.read().split('\n')
+
+    keywords = keywords[:-1]
+    stories = None if trace else []
+
+    for index, row in content[content['title'].str.contains('|'.join(keywords), case = False)].iterrows():
+        if trace:
+            print(row['title'])
+            continue
+
+        thread = row['thread']
+        folder = row['folder']
+
+        path = os.path.join(threads, folder, f'{thread:08d}.txt')
+
+        with open(path, 'r', encoding = 'utf-8') as file:
+            lines = file.readlines()
+
+        for line in lines:
+            if min_length < len(line) < max_length:
+                stories.append(line)
+
+    if not trace:
+        with open(output_path, 'w', encoding = 'utf-8') as file:
+            file.writelines(stories)
+
+
 if __name__ == '__main__':
     main()
