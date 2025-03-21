@@ -21,14 +21,14 @@ from pandas import DataFrame, read_csv, concat
 from tqdm import tqdm
 from requests.exceptions import ConnectionError, ChunkedEncodingError
 from flask import Flask
-from karma import CloudMail
+# from karma import CloudMail
 from torch.cuda import OutOfMemoryError
 # from google_images_search import GoogleImagesSearch
 # from vk_api import VkApi
 
-from rr import HuggingFaceClient, Task, post_process_summary, truncate_translation
-from rr.util import retry
-from rr.alternator import _alternate
+# from rr import HuggingFaceClient, Task, post_process_summary, truncate_translation
+# from rr.util import retry
+# from rr.alternator import _alternate
 
 from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
@@ -36,14 +36,14 @@ from .Post import Post
 from .util import normalize, SPACE, pull_original_poster, drop_original_poster, find_original_poster  # , post_process_summary, truncate_translation
 # from .vk_auth import auth
 # from .vk import upload_audio
-from .ImageSearchEngine import ImageSearchEngine
-from .nlp import summarize
-from .VkClient import VkClient
-from .VkFileUploader import VkFileUploader
-from .VkAudioUploader import VkAudioUploader
-from .VkPhotoUploader import VkPhotoUploader
-from .VkVideoUploader import VkVideoUploader
-from .ArtistSampler import ArtistSampler
+# from .ImageSearchEngine import ImageSearchEngine
+# from .nlp import summarize
+# from .VkClient import VkClient
+# from .VkFileUploader import VkFileUploader
+# from .VkAudioUploader import VkAudioUploader
+# from .VkPhotoUploader import VkPhotoUploader
+# from .VkVideoUploader import VkVideoUploader
+# from .ArtistSampler import ArtistSampler
 # from .HuggingFaceClient import HuggingFaceClient, Task
 # from .folder import cached_folder
 from .CloudFile import CloudFile
@@ -223,7 +223,7 @@ class Foo:
         self.foo = 'foo'
         self.i = 1
 
-    @retry(times = 3)
+    # @retry(times = 3)
     def wait_and_rise(self):
         print('waiting')
 
@@ -1151,8 +1151,8 @@ def sync(index: str, path: str, target: str):
 def start_proxy(host: str, port: int, timeout: int, protocol: str):
     app = Flask(__name__)
 
-    _ARHIVACH_THREAD_URL = f'{protocol}://arhivach.top/thread/{{thread}}'
-    _ARHIVACH_INDEX_URL = f'{protocol}://arhivach.top/index/{{offset}}'
+    _ARHIVACH_THREAD_URL = f'{protocol}://arhivach.hk/thread/{{thread}}'
+    _ARHIVACH_INDEX_URL = f'{protocol}://arhivach.hk/index/{{offset}}'
 
     @app.get('/thread/<thread>')
     def get_thread(thread: int):
