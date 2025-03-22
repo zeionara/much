@@ -1,7 +1,7 @@
 import re
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from nltk import sent_tokenize, word_tokenize
+# from sklearn.feature_extraction.text import TfidfVectorizer
+# from nltk import sent_tokenize, word_tokenize
 
 import numpy as np
 

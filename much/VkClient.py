@@ -4,7 +4,7 @@ from io import BytesIO, BufferedReader
 
 from requests import post as postt, get
 
-from rr.util import is_image, is_video
+# from rr.util import is_image, is_video
 
 from .ImageSearchEngine import ImageSearchEngine
 

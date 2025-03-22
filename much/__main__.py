@@ -7,7 +7,7 @@ from shutil import copyfile, move
 from html import unescape
 from multiprocessing import Pool, Lock
 from datetime import datetime, timedelta
-# from math import ceil, floor
+from math import ceil  # , floor
 from time import sleep
 # from random import sample
 import warnings
@@ -21,14 +21,14 @@ from pandas import DataFrame, read_csv, concat
 from tqdm import tqdm
 from requests.exceptions import ConnectionError, ChunkedEncodingError
 from flask import Flask
-from karma import CloudMail
-from torch.cuda import OutOfMemoryError
+# from karma import CloudMail
+# from torch.cuda import OutOfMemoryError
 # from google_images_search import GoogleImagesSearch
 # from vk_api import VkApi
 
-from rr import HuggingFaceClient, Task, post_process_summary, truncate_translation
-from rr.util import retry
-from rr.alternator import _alternate
+# from rr import HuggingFaceClient, Task, post_process_summary, truncate_translation
+# from rr.util import retry
+# from rr.alternator import _alternate
 
 from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
@@ -38,11 +38,11 @@ from .util import normalize, SPACE, pull_original_poster, drop_original_poster, 
 # from .vk import upload_audio
 from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
-from .VkClient import VkClient
-from .VkFileUploader import VkFileUploader
-from .VkAudioUploader import VkAudioUploader
-from .VkPhotoUploader import VkPhotoUploader
-from .VkVideoUploader import VkVideoUploader
+# from .VkClient import VkClient
+# from .VkFileUploader import VkFileUploader
+# from .VkAudioUploader import VkAudioUploader
+# from .VkPhotoUploader import VkPhotoUploader
+# from .VkVideoUploader import VkVideoUploader
 from .ArtistSampler import ArtistSampler
 # from .HuggingFaceClient import HuggingFaceClient, Task
 # from .folder import cached_folder
@@ -223,7 +223,7 @@ class Foo:
         self.foo = 'foo'
         self.i = 1
 
-    @retry(times = 3)
+    # @retry(times = 3)
     def wait_and_rise(self):
         print('waiting')
 
@@ -532,7 +532,14 @@ def sort(source: str, destination: str, batch_size: int, threads: str, pretend: 
     if 'folder' not in df.columns:
         df['folder'] = df.index.to_series().apply(lambda i: make_grabbed_folder_path(i, batch_size, threads))
     else:
-        df['folder'] = df.folder.apply(lambda folder: os.path.join(threads, folder))
+        thread_id_to_folder = {}
+
+        for root, dirs, files in os.walk(threads):
+            for name in files:
+                thread_id_to_folder[int(name.split('.')[0])] = root
+
+        # df['folder'] = df.apply(lambda cell: detect_folder(threads, cell['thread']) if isinstance(cell.get('folder'), float) else os.path.join(threads, cell['folder']))
+        df['folder'] = df.apply(lambda cell: os.path.join(threads, cell['folder']) if isinstance(cell['folder'], str) else thread_id_to_folder[cell['thread']], axis = 1)
 
     df.sort_values(by = ['thread'], inplace = True)
 
@@ -578,6 +585,9 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int,
 
         if len(seen_keys) != content.shape[0]:
             raise ValueError(f'Input index contains duplicates ({len(seen_keys)} != {content.shape[0]})')
+
+    if index is None:
+        index = 'index.tsv'
 
     def handle_page(page: str):
         bs = BeautifulSoup(page, 'html.parser')
@@ -1127,18 +1137,31 @@ def sync(index: str, path: str, target: str):
     if not os.path.isdir(target):
         os.makedirs(target)
 
+    print('indexing...')
+
+    pairs = set()
+    for _, row in index.iterrows():
+        pair = (row['thread'], row['folder'])
+
+        if pair in pairs:
+            raise ValueError(f'There are multiple threads with id {row["thread"]} in folder {row["folder"]}')
+
+        pairs.add(pair)
+
+    print('indexed')
+
     for path, _, files in os.walk(path):
         for file in files:
             folder = Path(path).stem
             thread_id = int(Path(file).stem)
 
-            row = index.loc[(index.thread == thread_id) & (index.folder == folder)]
+            # row = index.loc[(index.thread == thread_id) & (index.folder == folder)]
+            # size = row.shape[0]
 
-            size = row.shape[0]
+            # if size > 1:
+            #     raise ValueError(f'There are multiple threads with id {thread_id} in folder {folder}')
 
-            if size > 1:
-                raise ValueError(f'There are multiple threads with id {thread_id} in folder {folder}')
-            if size < 1:
+            if (thread_id, folder) not in pairs:
                 print(f'Missing index entry for thread {thread_id} which is {os.stat(file_path := os.path.join(path, file)).st_size / 1024:.2f} Kb large. Moving it to {target}...')
                 move(file_path, os.path.join(target, file))
 
@@ -1178,7 +1201,7 @@ def start_proxy(host: str, port: int, timeout: int, protocol: str):
 @option('--threads', '-t', type = str, default = 'threads')
 @option('--keywords', '-k', type = str, default = 'creepy-dict.txt')
 @option('--min-length', '-s', type = int, default = 1000)
-@option('--max-length', '-x', type = int, default = 3000)
+@option('--max-length', '-x', type = int, default = 4000)
 @option('--output-path', '-o', type = str, default = 'stories.txt')
 @option('--trace', '-r', is_flag = True)
 def collect_creepy_stories(index: str, threads: str, keywords: str, min_length: int, max_length: int, output_path: str, trace: bool):

@@ -1,6 +1,6 @@
 from enum import Enum
 
-from rr.util import is_video, is_image
+# from rr.util import is_video, is_image
 
 from .VkPhotoUploader import VkPhotoUploader
 from .VkVideoUploader import VkVideoUploader
