@@ -2,7 +2,7 @@ from random import choice
 
 
 class ArtistSampler:
-    def __init__(self, path: str = 'artists.txt'):
+    def __init__(self, path: str = 'assets/artists.txt'):
         with open(path, 'r', encoding = 'utf-8') as file:
             self.artists = [line[:-1] for line in file.readlines() if len(line) > 1]
 
