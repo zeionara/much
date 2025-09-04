@@ -54,7 +54,7 @@ def main():
     pass
 
 
-THREAD_URL = 'https://2ch.hk/b/res/{thread}.html'
+THREAD_URL = 'https://2ch.su/b/res/{thread}.html'
 # ARHIVACH_THREAD_URL = '{protocol}://arhivach.top/thread/{thread}'
 # ARHIVACH_INDEX_URL = '{protocol}://arhivach.top/index/{offset}'
 ARHIVACH_THREAD_URL = '{protocol}://localhost:8080/thread/{thread}'
@@ -698,7 +698,7 @@ def drop_image(thread: str, root: str):
 
 
 @main.command()
-@argument('url', type = str, default = 'https://2ch.hk/b/catalog.json')
+@argument('url', type = str, default = 'https://2ch.su/b/catalog.json')
 @option('--path', '-p', type = str, default = 'threads')
 @option('--index', '-i', type = str, default = 'index.tsv')
 @option('--batch-size', '-b', help = 'how many threads to put in a folder', default = 10000)
