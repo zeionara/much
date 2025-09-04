@@ -2,8 +2,8 @@
 
 from os import environ as env
 
-from google_images_search import GoogleImagesSearch
-from googleapiclient.errors import HttpError
+# from google_images_search import GoogleImagesSearch
+# from googleapiclient.errors import HttpError
 
 from .util import normalize
 

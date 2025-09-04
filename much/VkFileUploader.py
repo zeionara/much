@@ -1,7 +1,7 @@
 from requests import post
 from os import environ as env
 
-from rr.util import retry
+# from rr.util import retry
 from .util import post as post_handling_captcha
 
 from .VkUploader import VkUploader, URL_TEMPLATE, TIMEOUT, API_VERSION
@@ -53,7 +53,7 @@ class VkFileUploader(VkUploader):
 
     #     return body
 
-    @retry(times = 3)
+    # @retry(times = 3)
     def _get_upload_server(self):
         response = post(
             URL_TEMPLATE.format(method = 'docs.getUploadServer'),
@@ -69,7 +69,7 @@ class VkFileUploader(VkUploader):
 
         return body['response']['upload_url']
 
-    @retry(times = 3)
+    # @retry(times = 3)
     def _upload_file(self, url: str, path: str):
         with open(path, 'r', encoding = 'utf8') as file:
             response = post(
@@ -84,7 +84,7 @@ class VkFileUploader(VkUploader):
 
         return body['file']
 
-    @retry(times = 3)
+    # @retry(times = 3)
     def _save(self, file: str, title: str = None, tags: list[str] = None):
         response = post_handling_captcha(
             URL_TEMPLATE.format(method = 'docs.save'),
