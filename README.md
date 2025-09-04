@@ -7,7 +7,36 @@
 
 A simple utility for crawling text from 2ch
 
+## Installation
+
+To install through pip:
+
+```sh
+pip install much
+```
+
+To install dependencies and create conda environment:
+
+```sh
+conda env create -f environment.yml
+```
+
 ## Usage
+
+### Pulling all active threads from the website
+
+```sh
+python -m much load -r images
+```
+
+### Listing and downloading threads from arhivach
+
+```sh
+python -m much filter -t 20 -i index.tsv -s 17340
+python -m much grab -n 20
+```
+
+### Etc
 
 The command `pull` requires two attributes - url of the web page to fetch and path to output file with `json` or `txt` extension depending on required output file format. For example:
 
@@ -31,18 +60,4 @@ To star a thread (copy it to folder `assets/starred` with a given name):
 
 ```sh
 python -m much star 263473351 discussion
-```
-
-## Installation
-
-To install through pip:
-
-```sh
-pip install much
-```
-
-To install dependencies and create conda environment:
-
-```sh
-conda env create -f environment.yml
 ```
