@@ -11,6 +11,7 @@ from math import ceil  # , floor
 from time import sleep
 # from random import sample
 import warnings
+import pickle
 
 warnings.filterwarnings('ignore', category = UserWarning)
 
@@ -30,7 +31,7 @@ from rr.alternator import _alternate
 from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
 from .Post import Post
-from .util import normalize, SPACE, pull_original_poster, drop_original_poster, find_original_poster  # , post_process_summary, truncate_translation
+from .util import normalize, SPACE, pull_original_poster, drop_original_poster, find_original_poster, get_file_modification_datetime, find_file  # , post_process_summary, truncate_translation
 # from .vk import upload_audio
 from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
@@ -42,12 +43,16 @@ from .VkAudioUploader import VkAudioUploader
 from .ArtistSampler import ArtistSampler
 # from .folder import cached_folder
 from .CloudFile import CloudFile
+from .IndexEntry import IndexEntry
 
 
 @group()
 def main():
     pass
 
+
+PATH = 'threads'
+INDEX = 'index.tsv'
 
 THREAD_URL = 'https://2ch.su/b/res/{thread}.html'
 # ARHIVACH_THREAD_URL = '{protocol}://arhivach.top/thread/{thread}'
@@ -146,6 +151,76 @@ def make_grabbed_folder_path(i: int, batch_size: int, path: str = None):
 
 
 TIMEOUT = 3600
+
+
+@main.command()
+@option('--index', '-i', type = str, default = INDEX)
+@option('--path', '-p', type = str, default = PATH)
+@option('--mtime-path', '-m', type = str, default = PATH)
+def create_missing_index_entries(index: str, path: str, mtime_path: str):
+    index = read_csv(index, sep = '\t')
+
+    indexed_threads = set()
+    entries = []
+
+    for _, row in tqdm(tuple(index.iterrows()), desc = 'Reading index'):
+        entry = IndexEntry.from_json(row.to_dict())
+
+        entries.append(entry)
+        indexed_threads.add(entry.thread_id)
+
+    n_matched_entries = 0
+    n_missing_index_entries = 0
+
+    for file in tqdm(os.listdir(path), desc = 'Handling threads'):
+        if not file.endswith('txt'):
+            continue
+
+        thread_id = int(file.split('.')[0])
+
+        if thread_id in indexed_threads:
+            n_matched_entries += 1
+        else:
+            n_missing_index_entries += 1
+
+            if path == mtime_path:
+                timestamp = get_file_modification_datetime(os.path.join(path, file))
+            else:
+                files = find_file(file, mtime_path)
+
+                if len(files) < 1:
+                    raise ValueError(f'Can\'t find file {file} in {mtime_path}')
+
+                if len(files) > 1:
+                    print(f'Found miltiple files with name {file} in {mtime_path}:')
+
+                    for file in files:
+                        print(f'{file}: {get_file_modification_datetime(file)}')
+
+                    print('Taking the last one')
+
+                    # raise ValueError(f'Found multiple files with name {file} in {mtime_path}')
+
+                timestamp = get_file_modification_datetime(files[-1])
+
+            with open(os.path.join(path, file), 'r') as f:
+                title = f.readline().strip()
+
+            entries.append(
+                IndexEntry(
+                    thread_id = thread_id,
+                    timestamp = timestamp,
+                    title = title
+                )
+            )
+
+    with open('assets/index.pkl', 'wb') as file:
+        pickle.dump(entries, file)
+
+    response = input(f'Found {n_matched_entries} matched entries and {n_missing_index_entries} missing entries in the index, total number of entries will be {len(entries)}. Insert missing? [Y/n]: ')
+
+    if response != 'Y':
+        print('Cancelling the operation')
 
 
 @main.command()
@@ -869,8 +944,7 @@ PAGE_TEMPLATE = f'{ROOT}/b/arch/{{id}}.html'
 # PATH = '../batch/batch'
 # INDEX = '../batch/index.tsv'
 
-PATH = 'threads'
-INDEX = 'index.tsv'
+
 
 
 def expand_title(title: str, topics: [Topic]):

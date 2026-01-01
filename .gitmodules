@@ -1,0 +1,6 @@
+[submodule "submodules/karma"]
+	path = submodules/karma
+	url = git@github.com:zeionara/karma.git
+[submodule "submodules/raconteur"]
+	path = submodules/raconteur
+	url = git@github.com:zeionara/raconteur.git
