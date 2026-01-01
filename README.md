@@ -21,6 +21,12 @@ To install dependencies and create conda environment:
 conda env create -f environment.yml
 ```
 
+Crontab entry for pulling threads every 15 minutes:
+
+```sh
+*/15 * * * * timeout 15m /bin/bash /opt/much/load.sh
+```
+
 ## Usage
 
 ### Pulling all active threads from the website

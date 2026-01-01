@@ -856,30 +856,31 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
         if last_thread_path is None and batch_folder_size >= batch_size:  # If thread has not been associated with a folder, and number of files in current folder reached maximum, then create new
             refresh_batch_folder_path()
 
+        topics = fetcher.fetch(THREAD_URL.format(thread = thread_id))
+        is_empty = len(topics) < 1
+
         records_list.append(
             record := {
                 'thread': thread_id,
                 'date': f'{day}-{month}-20{year}',
                 'title': Post.from_body(BeautifulSoup(thread['comment'], 'html.parser'))[1].text,
-                'folder': batch_folder_name if last_batch_folder_name is None else last_batch_folder_name,
+                'folder': None if is_empty else batch_folder_name if last_batch_folder_name is None else last_batch_folder_name,
                 'open': True
             }
         )
 
-        size_before_update = None if last_thread_path is None else os.stat(last_thread_path).st_size
-        exporter.export(
-            fetcher.fetch(THREAD_URL.format(thread = thread_id)),
-            format = Format.TXT,
-            path = (final_path := (os.path.join(batch_folder_path, f'{thread_id}.txt') if last_thread_path is None else last_thread_path))
-        )
-        size_after_update = os.stat(final_path).st_size
+        if is_empty:
+            print(f'Empty thread {thread_id}')
+            continue
 
-        if size_before_update is not None and (size_after_update < 1 and size_before_update > 0):
-            print(f'ATTENTION! Lost some data in file {final_path}')
-        elif size_after_update < 1:
-            print(f'ATTENTION! Empty thread {final_path}')
+        exporter.export(
+            topics,
+            format = Format.TXT,
+            path = (os.path.join(batch_folder_path, f'{thread_id}.txt') if last_thread_path is None else last_thread_path)
+        )
 
         records[thread_id] = record
+
         if last_thread_path is None:
             batch_folder_size += 1
 
