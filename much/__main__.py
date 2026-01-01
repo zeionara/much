@@ -31,7 +31,8 @@ from rr.alternator import _alternate
 from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
 from .Post import Post
-from .util import normalize, SPACE, pull_original_poster, drop_original_poster, find_original_poster, get_file_modification_datetime, find_file  # , post_process_summary, truncate_translation
+from .util import normalize, SPACE, pull_original_poster, pull_original_posters, \
+    drop_original_poster, find_original_poster, get_file_modification_datetime, find_file  # , post_process_summary, truncate_translation
 # from .vk import upload_audio
 from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
@@ -806,8 +807,9 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
     records_list = []
     records = {}
 
-    offset = 0
+    offset = 1
     batch_max_count = offset + batch_size - 1
+
     batch_folder_size = None
     batch_folder_name = None
     batch_folder_path = None
@@ -820,17 +822,17 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
             batch_folder_path = os.path.join(path, batch_folder_name)
             batch_folder_size = None
 
-            if not os.path.isdir(batch_folder_path):
-                os.makedirs(batch_folder_path)
-                batch_folder_size = 0
-            else:
+            if os.path.isdir(batch_folder_path):
                 batch_folder_size = len(os.listdir(batch_folder_path))
 
-                if batch_folder_size < batch_size:
+                if batch_folder_size < batch_size:  # Found an existing folder which is not full
                     break
 
                 offset = batch_max_count + 1
                 batch_max_count = offset + batch_size - 1
+            else:
+                os.makedirs(batch_folder_path)
+                batch_folder_size = 0
 
     refresh_batch_folder_path()
 
@@ -842,44 +844,27 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
 
         thread_id = thread['num']
 
-        pull_original_poster(thread, poster_root)
+        pull_original_posters(thread, poster_root)
 
         last_thread_path = None
         last_batch_folder_name = None
-        if last_records is not None and (last_record := last_records.get(thread_id)) is not None:
+
+        if last_records is not None and (last_record := last_records.get(thread_id)) is not None:  # If thread has already been associated with a folder
             last_thread_path = os.path.join(path, last_record['folder'], f'{thread_id}.txt')
             last_batch_folder_name = last_record['folder']
 
-        if last_thread_path is None and batch_folder_size >= batch_size:
+        if last_thread_path is None and batch_folder_size >= batch_size:  # If thread has not been associated with a folder, and number of files in current folder reached maximum, then create new
             refresh_batch_folder_path()
-
-            # offset = batch_max_count + 1
-            # batch_max_count = offset + batch_size - 1
-            # batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
-            # batch_folder_path = os.path.join(path, batch_folder_name)
-
-            # if os.path.isdir(batch_folder_path):
-            #     print(f'Folder {batch_folder_path} already exists')
-            #     batch_folder_size = len(os.listdir(batch_folder_path))
-            #     # raise ValueError(f'Folder {batch_folder_path} already exists')
-            # else:
-            #     os.makedirs(batch_folder_path, exist_ok = True)
-            #     batch_folder_size = 0
-
-        # print(thread_id, last_thread_path, last_batch_folder_name)
 
         records_list.append(
             record := {
                 'thread': thread_id,
                 'date': f'{day}-{month}-20{year}',
-                # 'path': path.replace('../', ''),
                 'title': Post.from_body(BeautifulSoup(thread['comment'], 'html.parser'))[1].text,
                 'folder': batch_folder_name if last_batch_folder_name is None else last_batch_folder_name,
                 'open': True
             }
         )
-
-        # try:
 
         size_before_update = None if last_thread_path is None else os.stat(last_thread_path).st_size
         exporter.export(
@@ -897,8 +882,6 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
         records[thread_id] = record
         if last_thread_path is None:
             batch_folder_size += 1
-        # except TypeError:
-        #     print(f'Cant process url {thread_url}. Skipping...')
 
     if last_records is None:
         df = DataFrame.from_records(records_list)

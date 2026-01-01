@@ -99,6 +99,35 @@ def pull_original_poster(thread: dict, root: str, allowed_extensions = ALLOWED_E
             print('-', path)
 
 
+def pull_original_posters(thread: dict, root: str, allowed_extensions = ALLOWED_EXTENSIONS):
+    thread_id = thread['num']
+
+    n_files = len(thread['files'])
+    i = 1
+
+    for file in thread['files']:
+        path = Path(file['path'])
+
+        if (suffix := path.suffix) in allowed_extensions:
+            link = f'https://2ch.hk{path}'
+
+            if n_files < 2:
+                local_path = os.path.join(root, f'{thread_id}{suffix}')
+            else:
+                local_path = os.path.join(root, f'{thread_id}-{i:02d}{suffix}')
+                i += 1
+
+            if not os.path.isfile(local_path):
+                try:
+                    image = get(link, timeout = TIMEOUT).content
+                except:
+                    print(f'Can\'t pull file {link}')
+                    continue
+
+                with open(local_path, 'wb') as file:
+                    file.write(image)
+
+
 def find_original_poster(thread: str, root: str):
     for file in os.listdir(root):
         if Path(file).stem == thread:
