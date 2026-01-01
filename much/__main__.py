@@ -850,7 +850,10 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
         last_batch_folder_name = None
 
         if last_records is not None and (last_record := last_records.get(thread_id)) is not None:  # If thread has already been associated with a folder
-            last_thread_path = os.path.join(path, last_record['folder'], f'{thread_id}.txt')
+            try:
+                last_thread_path = os.path.join(path, last_record['folder'], f'{thread_id}.txt')
+            except TypeError:
+                pass
             last_batch_folder_name = last_record['folder']
 
         if last_thread_path is None and batch_folder_size >= batch_size:  # If thread has not been associated with a folder, and number of files in current folder reached maximum, then create new

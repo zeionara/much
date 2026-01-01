@@ -80,7 +80,7 @@ def pull_original_poster(thread: dict, root: str, allowed_extensions = ALLOWED_E
         path = Path(file['path'])
 
         if (suffix := path.suffix) in allowed_extensions:
-            link = f'https://2ch.hk{path}'
+            link = f'https://2ch.org{path}'
             local_path = os.path.join(root, f'{thread_id}{suffix}')
 
             if not os.path.isfile(local_path):
@@ -109,7 +109,7 @@ def pull_original_posters(thread: dict, root: str, allowed_extensions = ALLOWED_
         path = Path(file['path'])
 
         if (suffix := path.suffix) in allowed_extensions:
-            link = f'https://2ch.hk{path}'
+            link = f'https://2ch.org{path}'
 
             if n_files < 2:
                 local_path = os.path.join(root, f'{thread_id}{suffix}')

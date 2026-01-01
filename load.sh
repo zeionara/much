@@ -21,4 +21,4 @@ fi
 date +"%Y-%m-%d %H:%M:%S" >> $LOG_FILE
 
 cd $PROJECT_ROOT
-conda run -n raconteur --no-capture-output python -m much load -r /mnt/outer-world/patch/images 1>> $LOG_FILE 2>&1
+conda run -n raconteur --no-capture-output python -m much load -r $PROJECT_ROOT/posters 1>> $LOG_FILE 2>&1
