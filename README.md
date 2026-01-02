@@ -54,7 +54,7 @@ sudo chown $USERNAME:$USERNAME /opt/much
 
 To update [branch][branch] dataset perform the following steps. Note that huggingface doesn't allow to store more than 1000000 files in a single repo, therefore it is very likely that you will need to distribute files with thread content across multiple repos.
 
-For running these commands it is recommended to create a symbolic link at the root of the cloned [branch][branch] dataset to the [much module][/much] sources.
+For running these commands it is recommended to create a symbolic link at the root of the cloned [branch][branch] dataset to the [much module](/much) sources.
 
 1. Identify id of the last downloaded thread (file `index.tsv` is taken from the root of the [branch][branch] dataset):
 
