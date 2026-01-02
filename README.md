@@ -23,6 +23,72 @@ conda env create -f environment.yml
 
 ## Usage
 
+### Basic
+
+The core command provided by the module is `pull`. The `pull` command lets you to download a thread from `2ch` website, and it accepts two attributes:
+
+1. url of the web page to fetch;
+2. path to output file with `json` or `txt` extension depending on required output file format.
+
+Example:
+
+```sh
+python -m much pull https://2ch.org/b/res/328321161.html assets/test.txt
+```
+
+or
+
+```sh
+python -m much pull https://2ch.org/b/res/328321161.html assets/test.json
+```
+
+The output `txt` file is structured as follows:
+
+1. The file consists of series of post texts, separated by single empty line.
+2. Each post is put on a new line.
+3. The posts are grouped into series based on how many times the post has been mentioned in posts below. The most popular posts appear at the top. Precisely, the parser works like this:
+  3.1. All posts on the page are collected, recording how many times each post has been mentioned in posts below.
+  3.2. The posts are sorted by decreasing number of other posts which metnion this post, increasing number of posts this post has mentioned and decreasing post text length.
+  3.3. Starting from the most popular post, the series are generated recursively by adding to the series all posts which mention the original post or any post above which has already been added to the series.
+  3.4. Posts which are shorter than the 15th percentile of post lengths in this thread, are not added to the output file.
+
+Here is an example of the thread content in `txt` format:
+
+```txt
+Foo bar
+Baz qux
+Quux corge
+
+Grault garply
+Waldo fred
+Plugh xyzzy
+```
+
+The output `json` file has a similar structure, but it is more explicit about the separation of post series. On the topmost level there is only property `topics`, which are the series mentioned above. Each series has the original post, the text of which is written to the `title` property of the items in the `topics` list, and each topic has a list of comments, located at the `comments` field. Here is an example, which corresponds to the example of `txt` file content above:
+
+```json
+{
+    "topics": [
+        {
+            "title": "Foo bar"
+            "comments": [
+                "Baz qux",
+                "Quux corge"
+            ]
+        },
+        {
+            "title": "Grault garply"
+            "comments": [
+                "Waldo fred",
+                "Plugh xyzzy"
+            ]
+        }
+    ]
+}
+```
+
+It is recommended to use `txt` file as it is more compact and human-readable.
+
 ### Pulling all active threads from [the 2ch website][2ch] to update [patch][patch] dataset
 
 The simplest call looks like:
