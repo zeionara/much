@@ -21,18 +21,33 @@ To install dependencies and create conda environment:
 conda env create -f environment.yml
 ```
 
-Crontab entry for pulling threads every 15 minutes:
-
-```sh
-*/15 * * * * timeout 15m /bin/bash /opt/much/load.sh
-```
-
 ## Usage
 
-### Pulling all active threads from the website
+### Pulling all active threads from the 2ch website to update [patch][patch] dataset
+
+The simplest call looks like:
 
 ```sh
 python -m much load -r images
+```
+
+However, to run the script automatically every 15 minutes:
+
+1. Clone the repo to the `/opt` folder:
+
+```sh
+cd /tmp
+git clone git@github.com:zeionara/much.git
+sudo mv much /opt
+sudo chown $USERNAME:$USERNAME /opt/much
+```
+
+2. Make sure that file `/opt/much/load.sh` has correct values for variables `PROJECT_ROOT` and `CONDA_ROOT` (it is recommended to create symbolic link `/opt/conda` which points to an actual `anaconda` location). 
+
+3. Set up the following crontab job:
+
+```sh
+*/15 * * * * timeout 15m /bin/bash /opt/much/load.sh
 ```
 
 ### Listing and downloading threads from arhivach
@@ -86,3 +101,5 @@ python -m much star 263473351 discussion
 ```
 
 [arhivach]: https://arhivach.vc
+[patch]: https://huggingface.co/datasets/zeio/patch
+[branch]: https://huggingface.co/datasets/zeio/branch
