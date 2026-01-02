@@ -19,6 +19,7 @@ SSL_ERROR_DELAY = 1  # seconds
 # )
 BLOCKED_KEYWORD = '<h3>Заблокировано по требованию Роскомнадзора.<br><p style="font-size:50%">P.S. Используйте'
 BLOCKED_KEYWORD_2 = '<h3>Заблокировано по жалобам третьих лиц.<br><p style="font-size:50%">P.S. Используйте'
+BLOCKED_KEYWORD_3 = '<h3>Заблокировано по жалобам третьих лиц.</h3>'
 TOO_LARGE = '<h3>Тред слишком большой для отображения на одной странице.<br>Мы работает над решением.'
 
 
@@ -149,6 +150,7 @@ class Fetcher:
                     BLOCKED_KEYWORD,
                     '<h3>Тред скрыт. Скорее всего, он содержит нежелательный контент.</h3>', '<i class="icon-refresh icon-white"></i>',
                     BLOCKED_KEYWORD_2,
+                    BLOCKED_KEYWORD_3,
                     TOO_LARGE
                 ):
                     # if keyword == BLOCKED_KEYWORD:

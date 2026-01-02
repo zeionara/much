@@ -57,8 +57,8 @@ def main():
 THREAD_URL = 'https://2ch.hk/b/res/{thread}.html'
 # ARHIVACH_THREAD_URL = '{protocol}://arhivach.top/thread/{thread}'
 # ARHIVACH_INDEX_URL = '{protocol}://arhivach.top/index/{offset}'
-ARHIVACH_THREAD_URL = '{protocol}://localhost:8080/thread/{thread}'
-ARHIVACH_INDEX_URL = '{protocol}://localhost:8080/index/{offset}'
+ARHIVACH_THREAD_URL = '{protocol}://arhivach.vc/thread/{thread}'
+ARHIVACH_INDEX_URL = '{protocol}://arhivach.vc/index/{offset}'
 ARHIVACH_CACHE_PATH = 'assets/cache.html'
 
 BOARD_NAME_TEMLATE = re.compile('/[a-zA-Z0-9]+/')
@@ -518,6 +518,22 @@ def list_empty_threads(threads: str):
             n_threads += 1
 
     print(f'{n_empty_threads} / {n_threads} threads are empty ({100 * n_empty_threads / n_threads:.3f}%)')
+
+
+@main.command()
+@option('--source', '-s', default = 'index.tsv')
+@option('--destination', '-d', default = 'index-with-folder.tsv')
+@option('--batch-size', '-b', help = 'How many threads to put in a folder', default = 10000)
+@option('--threads', '-t', help = 'Path to the root folder with threads', default = 'threads')
+@option('--pretend', '-p', is_flag = True)
+def update_folder_column(source: str, destination: str, batch_size: int, threads: str, pretend: bool):
+    df = read_csv(source, sep = '\t')
+
+    df['folder'] = df.index.to_series().apply(lambda i: make_grabbed_folder_path(i, batch_size, threads).split('/')[-1])
+    df.sort_values(by = ['thread'], inplace = True)
+
+    if not pretend:
+        df.to_csv(destination, sep = '\t', index = False)
 
 
 @main.command()
