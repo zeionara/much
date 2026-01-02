@@ -21,6 +21,12 @@ To install dependencies and create conda environment:
 conda env create -f environment.yml
 ```
 
+Crontab entry for pulling threads every 15 minutes:
+
+```sh
+*/15 * * * * timeout 15m /bin/bash /opt/much/load.sh
+```
+
 ## Usage
 
 ### Pulling all active threads from the website
@@ -31,8 +37,25 @@ python -m much load -r images
 
 ### Listing and downloading threads from arhivach
 
+1. Identify id of the last downloaded thread:
+
 ```sh
-python -m much filter -t 20 -i index.tsv -s 17340
+tail -n 1 index.tsv | awk '{ print $1 }'
+```
+
+2. Open [arhivach][arhivach] and manually find offset to the thread with this id.
+
+3. Update `index.tsv` by listing threads from this offset to the end:
+
+```sh
+python -m much filter -t 20 -i index.tsv -s $OFFSET
+```
+
+Increasing offset involves moving farther to old threads, and decreasing the thread ids which appear on the page.
+
+4. Pull threads content:
+
+```sh
 python -m much grab -n 20
 ```
 
@@ -61,3 +84,5 @@ To star a thread (copy it to folder `assets/starred` with a given name):
 ```sh
 python -m much star 263473351 discussion
 ```
+
+[arhivach]: https://arhivach.vc

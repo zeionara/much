@@ -2,6 +2,7 @@ import os
 import re
 from math import floor
 from pathlib import Path
+from datetime import datetime
 
 from requests import get, post as requests_post
 
@@ -79,7 +80,7 @@ def pull_original_poster(thread: dict, root: str, allowed_extensions = ALLOWED_E
         path = Path(file['path'])
 
         if (suffix := path.suffix) in allowed_extensions:
-            link = f'https://2ch.hk{path}'
+            link = f'https://2ch.org{path}'
             local_path = os.path.join(root, f'{thread_id}{suffix}')
 
             if not os.path.isfile(local_path):
@@ -96,6 +97,35 @@ def pull_original_poster(thread: dict, root: str, allowed_extensions = ALLOWED_E
                 return
         else:
             print('-', path)
+
+
+def pull_original_posters(thread: dict, root: str, allowed_extensions = ALLOWED_EXTENSIONS):
+    thread_id = thread['num']
+
+    n_files = len(thread['files'])
+    i = 1
+
+    for file in thread['files']:
+        path = Path(file['path'])
+
+        if (suffix := path.suffix) in allowed_extensions:
+            link = f'https://2ch.org{path}'
+
+            if n_files < 2:
+                local_path = os.path.join(root, f'{thread_id}{suffix}')
+            else:
+                local_path = os.path.join(root, f'{thread_id}-{i:02d}{suffix}')
+                i += 1
+
+            if not os.path.isfile(local_path):
+                try:
+                    image = get(link, timeout = TIMEOUT).content
+                except:
+                    print(f'Can\'t pull file {link}')
+                    continue
+
+                with open(local_path, 'wb') as file:
+                    file.write(image)
 
 
 def find_original_poster(thread: str, root: str):
@@ -199,3 +229,37 @@ def is_video(path: str):
     # moved to raconteur module: https://github.com/zeionara/raconteur
 
     return Path(path).suffix in VIDEO_EXTENSIONS
+
+
+def get_file_modification_datetime(path: str):
+    return datetime.fromtimestamp(os.stat(path).st_mtime)
+
+    # stat = os.stat(path)
+
+    # try:
+    #     creation_time_timestamp = stat.st_birthtime
+    # except AttributeError:
+    #     creation_time_timestamp = stat.st_mtime
+    #     print(f"Warning: st_birthtime not available for file {path}, falling back to modification time")
+
+    # creation_datetime = datetime.fromtimestamp(creation_time_timestamp)
+
+    # return creation_datetime
+
+
+def find_file(name: str, start_dir: str):
+    """
+    Recursively finds files with a specific name using pathlib.
+
+    Args:
+        file_name (str): The name of the file to find.
+        start_dir (str): The directory to start searching from.
+
+    Returns:
+        list: A list of Path objects for all matching files.
+    """
+    p = Path(start_dir)
+
+    found_files = list(p.rglob(f'**/{name}'))
+
+    return found_files

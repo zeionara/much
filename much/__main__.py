@@ -11,6 +11,7 @@ from math import ceil  # , floor
 from time import sleep
 # from random import sample
 import warnings
+import pickle
 
 warnings.filterwarnings('ignore', category = UserWarning)
 
@@ -30,7 +31,8 @@ from rr.alternator import _alternate
 from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
 from .Post import Post
-from .util import normalize, SPACE, pull_original_poster, drop_original_poster, find_original_poster  # , post_process_summary, truncate_translation
+from .util import normalize, SPACE, pull_original_poster, pull_original_posters, \
+    drop_original_poster, find_original_poster, get_file_modification_datetime, find_file  # , post_process_summary, truncate_translation
 # from .vk import upload_audio
 from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
@@ -42,12 +44,16 @@ from .VkAudioUploader import VkAudioUploader
 from .ArtistSampler import ArtistSampler
 # from .folder import cached_folder
 from .CloudFile import CloudFile
+from .IndexEntry import IndexEntry
 
 
 @group()
 def main():
     pass
 
+
+PATH = 'threads'
+INDEX = 'index.tsv'
 
 THREAD_URL = 'https://2ch.su/b/res/{thread}.html'
 # ARHIVACH_THREAD_URL = '{protocol}://arhivach.top/thread/{thread}'
@@ -146,6 +152,76 @@ def make_grabbed_folder_path(i: int, batch_size: int, path: str = None):
 
 
 TIMEOUT = 3600
+
+
+@main.command()
+@option('--index', '-i', type = str, default = INDEX)
+@option('--path', '-p', type = str, default = PATH)
+@option('--mtime-path', '-m', type = str, default = PATH)
+def create_missing_index_entries(index: str, path: str, mtime_path: str):
+    index = read_csv(index, sep = '\t')
+
+    indexed_threads = set()
+    entries = []
+
+    for _, row in tqdm(tuple(index.iterrows()), desc = 'Reading index'):
+        entry = IndexEntry.from_json(row.to_dict())
+
+        entries.append(entry)
+        indexed_threads.add(entry.thread_id)
+
+    n_matched_entries = 0
+    n_missing_index_entries = 0
+
+    for file in tqdm(os.listdir(path), desc = 'Handling threads'):
+        if not file.endswith('txt'):
+            continue
+
+        thread_id = int(file.split('.')[0])
+
+        if thread_id in indexed_threads:
+            n_matched_entries += 1
+        else:
+            n_missing_index_entries += 1
+
+            if path == mtime_path:
+                timestamp = get_file_modification_datetime(os.path.join(path, file))
+            else:
+                files = find_file(file, mtime_path)
+
+                if len(files) < 1:
+                    raise ValueError(f'Can\'t find file {file} in {mtime_path}')
+
+                if len(files) > 1:
+                    print(f'Found miltiple files with name {file} in {mtime_path}:')
+
+                    for file in files:
+                        print(f'{file}: {get_file_modification_datetime(file)}')
+
+                    print('Taking the last one')
+
+                    # raise ValueError(f'Found multiple files with name {file} in {mtime_path}')
+
+                timestamp = get_file_modification_datetime(files[-1])
+
+            with open(os.path.join(path, file), 'r') as f:
+                title = f.readline().strip()
+
+            entries.append(
+                IndexEntry(
+                    thread_id = thread_id,
+                    timestamp = timestamp,
+                    title = title
+                )
+            )
+
+    with open('assets/index.pkl', 'wb') as file:
+        pickle.dump(entries, file)
+
+    response = input(f'Found {n_matched_entries} matched entries and {n_missing_index_entries} missing entries in the index, total number of entries will be {len(entries)}. Insert missing? [Y/n]: ')
+
+    if response != 'Y':
+        print('Cancelling the operation')
 
 
 @main.command()
@@ -747,8 +823,9 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
     records_list = []
     records = {}
 
-    offset = 0
+    offset = 1
     batch_max_count = offset + batch_size - 1
+
     batch_folder_size = None
     batch_folder_name = None
     batch_folder_path = None
@@ -761,17 +838,17 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
             batch_folder_path = os.path.join(path, batch_folder_name)
             batch_folder_size = None
 
-            if not os.path.isdir(batch_folder_path):
-                os.makedirs(batch_folder_path)
-                batch_folder_size = 0
-            else:
+            if os.path.isdir(batch_folder_path):
                 batch_folder_size = len(os.listdir(batch_folder_path))
 
-                if batch_folder_size < batch_size:
+                if batch_folder_size < batch_size:  # Found an existing folder which is not full
                     break
 
                 offset = batch_max_count + 1
                 batch_max_count = offset + batch_size - 1
+            else:
+                os.makedirs(batch_folder_path)
+                batch_folder_size = 0
 
     refresh_batch_folder_path()
 
@@ -783,63 +860,48 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
 
         thread_id = thread['num']
 
-        pull_original_poster(thread, poster_root)
+        pull_original_posters(thread, poster_root)
 
         last_thread_path = None
         last_batch_folder_name = None
-        if last_records is not None and (last_record := last_records.get(thread_id)) is not None:
-            last_thread_path = os.path.join(path, last_record['folder'], f'{thread_id}.txt')
+
+        if last_records is not None and (last_record := last_records.get(thread_id)) is not None:  # If thread has already been associated with a folder
+            try:
+                last_thread_path = os.path.join(path, last_record['folder'], f'{thread_id}.txt')
+            except TypeError:
+                pass
             last_batch_folder_name = last_record['folder']
 
-        if last_thread_path is None and batch_folder_size >= batch_size:
+        if last_thread_path is None and batch_folder_size >= batch_size:  # If thread has not been associated with a folder, and number of files in current folder reached maximum, then create new
             refresh_batch_folder_path()
 
-            # offset = batch_max_count + 1
-            # batch_max_count = offset + batch_size - 1
-            # batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
-            # batch_folder_path = os.path.join(path, batch_folder_name)
-
-            # if os.path.isdir(batch_folder_path):
-            #     print(f'Folder {batch_folder_path} already exists')
-            #     batch_folder_size = len(os.listdir(batch_folder_path))
-            #     # raise ValueError(f'Folder {batch_folder_path} already exists')
-            # else:
-            #     os.makedirs(batch_folder_path, exist_ok = True)
-            #     batch_folder_size = 0
-
-        # print(thread_id, last_thread_path, last_batch_folder_name)
+        topics = fetcher.fetch(THREAD_URL.format(thread = thread_id))
+        is_empty = len(topics) < 1
 
         records_list.append(
             record := {
                 'thread': thread_id,
                 'date': f'{day}-{month}-20{year}',
-                # 'path': path.replace('../', ''),
                 'title': Post.from_body(BeautifulSoup(thread['comment'], 'html.parser'))[1].text,
-                'folder': batch_folder_name if last_batch_folder_name is None else last_batch_folder_name,
+                'folder': None if is_empty else batch_folder_name if last_batch_folder_name is None else last_batch_folder_name,
                 'open': True
             }
         )
 
-        # try:
+        if is_empty:
+            print(f'Empty thread {thread_id}')
+            continue
 
-        size_before_update = None if last_thread_path is None else os.stat(last_thread_path).st_size
         exporter.export(
-            fetcher.fetch(THREAD_URL.format(thread = thread_id)),
+            topics,
             format = Format.TXT,
-            path = (final_path := (os.path.join(batch_folder_path, f'{thread_id}.txt') if last_thread_path is None else last_thread_path))
+            path = (os.path.join(batch_folder_path, f'{thread_id}.txt') if last_thread_path is None else last_thread_path)
         )
-        size_after_update = os.stat(final_path).st_size
-
-        if size_before_update is not None and (size_after_update < 1 and size_before_update > 0):
-            print(f'ATTENTION! Lost some data in file {final_path}')
-        elif size_after_update < 1:
-            print(f'ATTENTION! Empty thread {final_path}')
 
         records[thread_id] = record
+
         if last_thread_path is None:
             batch_folder_size += 1
-        # except TypeError:
-        #     print(f'Cant process url {thread_url}. Skipping...')
 
     if last_records is None:
         df = DataFrame.from_records(records_list)
@@ -885,8 +947,7 @@ PAGE_TEMPLATE = f'{ROOT}/{{board}}/arch/{{id}}.html'
 # PATH = '../batch/batch'
 # INDEX = '../batch/index.tsv'
 
-PATH = 'threads'
-INDEX = 'index.tsv'
+
 
 
 def expand_title(title: str, topics: [Topic]):
