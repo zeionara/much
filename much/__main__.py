@@ -1,7 +1,7 @@
 import re
 import os
 # from io import BytesIO, BufferedReader
-from os import environ as env
+from os import environ as env, listdir
 from pathlib import Path
 from shutil import copyfile, move
 from html import unescape
@@ -18,7 +18,7 @@ warnings.filterwarnings('ignore', category = UserWarning)
 from click import group, argument, option, Choice
 from requests import get, post as postt
 from bs4 import BeautifulSoup
-from pandas import DataFrame, read_csv, concat
+from pandas import DataFrame, read_csv, concat, isna as isnan
 from tqdm import tqdm
 from requests.exceptions import ConnectionError, ChunkedEncodingError
 from flask import Flask
@@ -32,7 +32,7 @@ from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
 from .Post import Post
 from .util import normalize, SPACE, pull_original_poster, pull_original_posters, \
-    drop_original_poster, find_original_poster, get_file_modification_datetime, find_file  # , post_process_summary, truncate_translation
+    drop_original_poster, find_original_poster, get_file_modification_datetime, find_file, offset_batch_name, BATCH_FOLDER_NAME, make_grabbed_folder_path  # , post_process_summary, truncate_translation
 # from .vk import upload_audio
 from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
@@ -45,6 +45,7 @@ from .ArtistSampler import ArtistSampler
 # from .folder import cached_folder
 from .CloudFile import CloudFile
 from .IndexEntry import IndexEntry
+from .ThreadUpdate import ThreadUpdate
 
 
 @group()
@@ -62,7 +63,7 @@ ARHIVACH_THREAD_URL = '{protocol}://arhivach.vc/thread/{thread}'
 ARHIVACH_INDEX_URL = '{protocol}://arhivach.vc/index/{offset}'
 ARHIVACH_CACHE_PATH = 'assets/cache.html'
 
-BOARD_NAME_TEMLATE = re.compile('/[a-zA-Z0-9]+/')
+BOARD_NAME_TEMPLATE = re.compile('/[a-zA-Z0-9]+/')
 TIME_TEMPLATE = re.compile('[0-9]+:[0-9]+')
 NEWLINE = '\n'
 
@@ -70,18 +71,31 @@ VK_API_VERSION = '5.199'
 
 POSTERS_DEFAULT_ROOT = '/tmp/much-images'
 MIN_SUMMARY_LENGTH = 40
+MAX_N_THREADS_IN_BRANCH = 999994
 
 empty_list_lock = Lock()
 
 
-def _get_board_name(thread: BeautifulSoup):
+def _get_board_name_from_thread_body(thread: BeautifulSoup):
+    header = thread.find('div', {'id': 'thread_header'})
+
+    if header is not None:
+        for link in header.find_all('a'):
+            text = link.text
+
+            parts = text.split('/')
+            if len(parts) > 3:
+                return '/' + parts[3] + '/'
+
+    return None
+
+
+def _get_board_name_from_thread_card(thread: BeautifulSoup):
     for link in (tags := thread.find('div', {'class': 'thread_tags'})).find_all('a'):
-        boards = BOARD_NAME_TEMLATE.findall(link['title'])
+        boards = BOARD_NAME_TEMPLATE.findall(link['title'])
 
         if len(boards) > 0:
             return boards[0]
-
-    # raise ValueError("Can't infer board: ", tags)
 
     print("Can't infer board: ", tags)
 
@@ -140,18 +154,88 @@ def _decode_date(date: str):
         return date
 
 
-def make_grabbed_folder_path(i: int, batch_size: int, path: str = None):
-    offset = i // batch_size * batch_size
-    batch_max_count = offset + batch_size - 1
-    batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
-
-    if path is None:
-        return batch_folder_name
-
-    return os.path.join(path, batch_folder_name)
-
-
 TIMEOUT = 3600
+
+
+@main.command()
+@argument('joined_index_path', type = str, default = 'index-joined.tsv')
+@argument('repo', type = str, default = 'branch')
+@option('--index', '-i', 'index_path', type = str, default = INDEX)
+def split_index(joined_index_path: str, repo: str, index_path: str):
+    df = read_csv(joined_index_path, sep = '\t')
+    df = df[df['repo'] == repo].drop('repo', axis = 1)
+
+    df.to_csv(index_path, sep = '\t', index = False)
+
+
+@main.command()
+@argument('index_path', type = str, default = INDEX)
+def add_repo_column(index_path: str):
+    n_changed_rows = 0
+
+    def fix_last_branch_batch(folder: str):
+        nonlocal n_changed_rows
+
+        if folder == '00990001-01000000':
+            n_changed_rows += 1
+            return '00990001-00999994'
+        return folder
+
+    n_threads_in_branch = 0
+    n_threads_in_branch2 = 0
+
+    def get_repo_name(folder: str):
+        nonlocal n_threads_in_branch, n_threads_in_branch2
+
+        if int(folder.split('-')[1]) <= 999994:
+            n_threads_in_branch += 1
+            return 'branch'
+
+        n_threads_in_branch2 += 1
+        return 'branch2'
+
+    df = read_csv(index_path, sep = '\t')
+    df['folder'] = df['folder'].apply(fix_last_branch_batch)
+    df['repo'] = df['folder'].apply(get_repo_name)
+
+    df.to_csv(index_path, sep = '\t', index = False)
+
+    print(f'Changed {n_changed_rows} rows')
+    print(f'Found {n_threads_in_branch} threads in branch and {n_threads_in_branch2} threads in branch2')
+
+
+@main.command()
+@option('--batch-size', '-b', type = int, default = 10_000)
+@option('--n-threads', '-n', type = int, default = 1_250_000)
+def create_symbolic_links_for_branch_index(batch_size: int, n_threads: int):
+    for i in range(0, n_threads, batch_size):
+        if i < 1_000_000:
+            if i == 990000:
+                os.system('ln -s "/mnt/ubu/home/zeio/branch/threads/00990001-00999994" threads/')
+                os.system('ln -s "/mnt/ubu/home/zeio/branch2/threads/00999995-01000000" threads/')
+            else:
+                os.system(f'ln -s "/mnt/ubu/home/zeio/branch/threads/{i + 1:08d}-{i + batch_size:08d}" threads/')
+        else:
+            os.system(f'ln -s "/mnt/ubu/home/zeio/branch2/threads/{i + 1:08d}-{i + batch_size:08d}" threads/')
+
+
+@main.command()
+@option('--index', '-i', 'index_path', type = str, default = INDEX)
+@option('--threads', '-t', 'threads_path', type = str, default = PATH)
+def fix_thread_folder_names(index_path: str, threads_path: str):
+    df = read_csv(index_path, sep = '\t')
+    df['folder'] = df['folder'].apply(offset_batch_name)
+    df.to_csv(index_path, sep = '\t', index = False)
+
+    # git_add_list = []
+
+    for folder in tqdm(sorted(listdir(threads_path))):
+        os.system(f'mv {os.path.join(threads_path, folder)} {os.path.join(threads_path, offset_batch_name(folder))}')
+
+        # git_add_list.append(os.path.join('threads', folder))
+        # git_add_list.append(os.path.join('threads', offset_batch_name(folder)))
+
+    # print('git add', ' '.join(git_add_list))
 
 
 @main.command()
@@ -660,15 +744,18 @@ def sort(source: str, destination: str, batch_size: int, threads: str, pretend: 
 @option('--index', '-i', type = str, default = None)
 @option('--step', '-t', type = int, default = 25)
 @option('--protocol', '-r', type = Choice(('http', 'https'), case_sensitive = True), default = 'http')
-def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int, protocol: str):
+@option('--batch-size', '-b', default = 10_000)
+def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int, protocol: str, batch_size: int):
     records = []
 
     if index is None:
         content = None
         seen_keys = set()
+        index_offset = 0
     else:
         content = read_csv(index, sep = '\t')
         seen_keys = set(content.thread)
+        index_offset = content.shape[0]
 
         if len(seen_keys) != content.shape[0]:
             raise ValueError(f'Input index contains duplicates ({len(seen_keys)} != {content.shape[0]})')
@@ -676,7 +763,9 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int,
     if index is None:
         index = 'index.tsv'
 
-    def handle_page(page: str):
+    def handle_page(page: str, pbar: tqdm):
+        nonlocal index_offset
+
         bs = BeautifulSoup(page, 'html.parser')
 
         for thread in bs.find_all('tr')[1:][::-1]:
@@ -694,17 +783,22 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int,
 
             date = _decode_date(thread.find('td', {'class': 'thread_date'}).text)
 
-            board = _get_board_name(thread)
+            board = _get_board_name_from_thread_card(thread)
+            folder = make_grabbed_folder_path(index_offset, batch_size)
+            repo = 'branch' if index_offset < MAX_N_THREADS_IN_BRANCH else 'branch2'
+
+            pbar.set_description(f'{folder}/{key} @ {repo} {date}')
 
             records.append({
                 'thread': key,
                 'title': text,
                 'date': date,
                 'board': board,
-                'stars': n_stars
+                'stars': n_stars,
+                'folder': folder,
+                'repo': repo
             })
-
-        # print(text, n_stars, board, key, date)
+            index_offset += 1
 
     def save():
         df = DataFrame.from_records(records)
@@ -745,7 +839,7 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int,
                 # if (code := response.status_code) != 200:
                 #     raise ValueError(f'Inacceptable status code: {code}')
 
-            handle_page(response.text)
+            handle_page(response.text, pbar)
 
             if i % 100 == 0:
                 save()
@@ -759,9 +853,6 @@ def filter(url: str, start: int, debug: bool, n_top: int, index: str, step: int,
             #         file.write(page)
 
         save()
-
-        print('To continue, run command:')
-        print(f'python -m much filter -t {step} -i {index} -n {n_top} -s {offset + step}')
 
 
 @main.command()
@@ -948,8 +1039,6 @@ PAGE_TEMPLATE = f'{ROOT}/{{board}}/arch/{{id}}.html'
 # INDEX = '../batch/index.tsv'
 
 
-
-
 def expand_title(title: str, topics: [Topic]):
     title = unescape(title)
 
@@ -962,19 +1051,19 @@ def expand_title(title: str, topics: [Topic]):
     return title
 
 
-BATCH_FOLDER_NAME = '{first:08d}-{last:08d}'
-
-
-def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, protocol: str, empty_list_path: str, empty_threads: list[int]):
+def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, protocol: str, empty_list_path: str, empty_threads: list[int], update_boards: bool):
     fetcher = Fetcher()
     exporter = Exporter()
 
     thread = row['thread']
+    batch_folder_name = row['folder']
 
     # if i > batch_max_count:
-    offset = i // batch_size * batch_size
-    batch_max_count = offset + batch_size - 1
-    batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+
+    # offset = i // batch_size * batch_size
+    # batch_max_count = offset + batch_size - 1
+    # batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+
     batch_folder_path = os.path.join(path, batch_folder_name)
 
     if not os.path.isdir(batch_folder_path):
@@ -992,12 +1081,37 @@ def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, pr
     # continue
 
     url = ARHIVACH_THREAD_URL.format(thread = thread, protocol = protocol)
+    updated = False
+
+    board = row["board"]
+
+    if update_boards and isnan(board):
+        response = None
+
+        while response is None or response.status_code != 200 or (len(response.text) < 1):
+            try:
+                response = get(url, timeout = TIMEOUT)
+            except (ConnectionError, ChunkedEncodingError) as e:
+                print(f'Encountered error when fetching thread {thread} page: {e}. Waiting for {SSL_ERROR_DELAY} before retrying...')
+                sleep(SSL_ERROR_DELAY)
+                print('Retrying...')
+                response = None
+
+        board = _get_board_name_from_thread_body(BeautifulSoup(response.text, 'html.parser'))
+
+        if board is not None:
+            updated = True
+
+    thread_description = f'{batch_folder_name}/{thread} {row["date"]}'
 
     if os.path.isfile(thread_path) and (skip_empty or thread in empty_threads or os.stat(thread_path).st_size > 0):
         # print(f'File {thread_path} exists. Not pulling')
         # pbar.update()
-        return
+        print(f'{thread_description} SKIPPING')
+        return ThreadUpdate(i = i, board = board, updated = updated)
         # continue
+
+    print(f'{thread_description} FETCHING')
 
     fetched = False
 
@@ -1014,6 +1128,8 @@ def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, pr
         except ConnectionError:
             continue
 
+    return ThreadUpdate(i = i, board = board, updated = updated)
+
     # pbar.update()
 
 
@@ -1021,13 +1137,12 @@ def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, pr
 @option('--path', '-p', type = str, help = 'path to the directory which will contain pulled files', default = 'threads')
 @option('--index', '-i', type = str, help = 'path to the file with pulled files indes', default = 'index.tsv')
 @option('--batch-size', '-b', type = int, help = 'how many threads to put in a folder', default = 10000)
-@option('--verbose', '-v', is_flag = True)
-@option('--pretend', '-e', is_flag = True)
 @option('--n-workers', '-n', type = int, default = 8)
 @option('--skip-empty', '-s', is_flag = True)
 @option('--protocol', '-r', type = str, default = 'http')
 @option('--empty-list-path', '-y', type = str, default = 'empty-threads.txt')
-def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n_workers: int, skip_empty: bool, protocol: str, empty_list_path: str):
+@option('--update-boards', '-u', is_flag = True)
+def grab(path: str, index: str, batch_size: int, n_workers: int, skip_empty: bool, protocol: str, empty_list_path: str, update_boards: bool = False):
     if not os.path.isdir(path):
         os.makedirs(path)
 
@@ -1057,7 +1172,19 @@ def grab(path: str, index: str, batch_size: int, verbose: bool, pretend: bool, n
 
     with Pool(processes = n_workers) as pool:
         # Use pool.starmap to parallelize the loop
-        pool.starmap(grab_one, [(i, row, batch_size, path, skip_empty, protocol, empty_list_path, empty_threads) for i, row in df.iterrows()])
+        updates = pool.starmap(grab_one, [(i, row, batch_size, path, skip_empty, protocol, empty_list_path, empty_threads, update_boards) for i, row in df.iterrows()])
+
+    if update_boards:
+        inferred_boards = [update.board for update in updates if update.updated]
+        print(f'Inferred boards: {set(inferred_boards)}')
+
+        if len(inferred_boards) > 0:
+            df['board'] = [
+                update.board
+                for update in sorted(updates, key = lambda update: update.i)
+            ]
+
+        df.to_csv(index, sep = '\t', index = False)
 
 
 @main.command()

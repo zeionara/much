@@ -22,6 +22,8 @@ ALLOWED_EXTENSIONS = (*IMAGE_EXTENSIONS, *VIDEO_EXTENSIONS)
 
 CAPTCHA_ERROR_CODE = 14
 
+BATCH_FOLDER_NAME = '{first:08d}-{last:08d}'
+
 
 def post(url: str, data: dict, timeout: int = None, interactive: bool = True):
     def get_response(captcha_key: str = None, captcha_sid: str = None):
@@ -263,3 +265,24 @@ def find_file(name: str, start_dir: str):
     found_files = list(p.rglob(f'**/{name}'))
 
     return found_files
+
+
+def make_grabbed_folder_path(i: int, batch_size: int, path: str = None):
+    offset = i // batch_size * batch_size
+    batch_folder_name = BATCH_FOLDER_NAME.format(first = offset + 1, last = offset + batch_size)
+
+    if path is None:
+        return batch_folder_name
+
+    return os.path.join(path, batch_folder_name)
+
+
+def offset_batch_name(name: str, offset: int = 1):
+    first_and_last = name.split('-')
+
+    if len(first_and_last) != 2:
+        raise ValueError(f'Invalid batch name: {name}')
+
+    first, last = first_and_last
+
+    return BATCH_FOLDER_NAME.format(first = int(first) + offset, last = int(last) + offset)

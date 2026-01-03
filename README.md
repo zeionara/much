@@ -122,30 +122,52 @@ To update [branch][branch] dataset perform the following steps. Note that huggin
 
 For running these commands it is recommended to create a symbolic link at the root of the cloned [branch][branch] dataset to the [much module](/much) sources.
 
-1. Identify id of the last downloaded thread (file `index.tsv` is taken from the root of the [branch][branch] dataset):
+1. Clone the [branch-index][branch-index] repo and [latest branch subset][branch2] repo:
 
 ```sh
-tail -n 1 index.tsv | awk '{ print $1 }'
+cd $HOME
+git clone git@hf.co:datasets/zeio/branch-index
+git clone git@hf.co:datasets/zeio/branch2
 ```
 
-2. Open [arhivach][arhivach] and manually find offset to the thread with this id. Increasing offset involves moving farther to old threads, and decreasing the thread ids which appear on the page.
+2. Go to the repo folders and run `git lfs pull` to download large files. Then move back to the `$HOME` directory and continue from there.
 
-3. Update `index.tsv` by listing threads from this offset to the end:
+3. Identify id of the last pulled thread:
 
 ```sh
-python -m much filter -t 20 -i index.tsv -s $OFFSET
+tail -n 1 branch-index/index.tsv | awk '{ print $1 }'
 ```
 
-4. Pull threads content:
+4. Open [arhivach][arhivach] and manually find offset to the thread with this id. Increasing offset involves moving farther to old threads, and decreasing the thread ids which appear on the page. The last pulled post should be at the top of the page. Suppose that required offset is `715`.
+
+5. Then to update `index.tsv` by listing threads from this offset to the end you would need python module [much][much]. It is recommended to install this module to a `$HOME` directory and create symbolic links to the module and its submodules at the cloned repo. When `much` is available from within the dataset subset folder, execute the following command from this directory:
 
 ```sh
-python -m much grab -n 20
+python -m much filter -t 20 -i ../branch-index/index.tsv -s 715
 ```
 
-5. Update `folder` column:
+6. Then you would need to extract entries from the global index which are relevant only to threads in the current subset:
 
 ```sh
-python -m much update-folder-column
+python -m much split-index ../branch-index/index.tsv branch2
+```
+
+7. The command `filter` only pulls list of threads and saves them to `index.tsv`, but to pull the actual threads content you would need to run a separate command, this command also checks for any missing `board` ids in the `index`, and fixes them if it founds any:
+
+```sh
+python -m much grab -n 10
+```
+
+8\*. To insert missing board ids into `index.tsv`, go to the folder `branch-index`, and run `much` from there with a special flag:
+
+```sh
+python -m much grab -n 10 --update-boards
+```
+
+Then go back to the `branch2` directory, and regenerate index split:
+
+```sh
+python -m much split-index ../branch-index/index.tsv branch2
 ```
 
 ### Etc
@@ -178,3 +200,6 @@ python -m much star 263473351 discussion
 [arhivach]: https://arhivach.vc
 [patch]: https://huggingface.co/datasets/zeio/patch
 [branch]: https://huggingface.co/datasets/zeio/branch
+[branch2]: https://huggingface.co/datasets/zeio/branch2
+[branch-index]: https://huggingface.co/datasets/zeio/branch-index
+[much]: https://github.com/zeionara/much
