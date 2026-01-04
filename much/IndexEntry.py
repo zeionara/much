@@ -24,3 +24,12 @@ class IndexEntry:
             folder = json.get('folder'),
             is_open = json.get('open', False)
         )
+
+    def as_record(self):
+        return {
+            'thread': self.thread_id,
+            'date': self.timestamp.strftime(TIMESTAMP_FORMAT),
+            'title': self.title,
+            'folder': self.folder,
+            'is_open': self.is_open
+        }

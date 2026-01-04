@@ -239,11 +239,13 @@ def fix_thread_folder_names(index_path: str, threads_path: str):
 
 
 @main.command()
-@option('--index', '-i', type = str, default = INDEX)
-@option('--path', '-p', type = str, default = PATH)
-@option('--mtime-path', '-m', type = str, default = PATH)
-def create_missing_index_entries(index: str, path: str, mtime_path: str):
-    index = read_csv(index, sep = '\t')
+@option('--index', '-i', 'index_path', type = str, default = INDEX)
+@option('--threads', '-t', 'threads_path', type = str, default = PATH)
+@option('--mtime', '-m', 'mtime_path', type = str, default = PATH)
+@option('--batch-size', '-b', type = int, default = 10_000)
+@option('--target-path', '-t', type = str, default = 'threads-batched')
+def create_missing_index_entries(index_path: str, threads_path: str, mtime_path: str, batch_size: int, target_path: str):
+    index = read_csv(index_path, sep = '\t')
 
     indexed_threads = set()
     entries = []
@@ -257,7 +259,7 @@ def create_missing_index_entries(index: str, path: str, mtime_path: str):
     n_matched_entries = 0
     n_missing_index_entries = 0
 
-    for file in tqdm(os.listdir(path), desc = 'Handling threads'):
+    for file in tqdm(os.listdir(threads_path), desc = 'Handling threads'):
         if not file.endswith('txt'):
             continue
 
@@ -268,8 +270,8 @@ def create_missing_index_entries(index: str, path: str, mtime_path: str):
         else:
             n_missing_index_entries += 1
 
-            if path == mtime_path:
-                timestamp = get_file_modification_datetime(os.path.join(path, file))
+            if threads_path == mtime_path:
+                timestamp = get_file_modification_datetime(os.path.join(threads_path, file))
             else:
                 files = find_file(file, mtime_path)
 
@@ -288,7 +290,7 @@ def create_missing_index_entries(index: str, path: str, mtime_path: str):
 
                 timestamp = get_file_modification_datetime(files[-1])
 
-            with open(os.path.join(path, file), 'r') as f:
+            with open(os.path.join(threads_path, file), 'r') as f:
                 title = f.readline().strip()
 
             entries.append(
@@ -299,13 +301,35 @@ def create_missing_index_entries(index: str, path: str, mtime_path: str):
                 )
             )
 
-    with open('assets/index.pkl', 'wb') as file:
-        pickle.dump(entries, file)
+    # with open('assets/index.pkl', 'wb') as file:
+    #     pickle.dump(entries, file)
+
+    # with open('assets/index.pkl', 'rb') as file:
+    #     entries = pickle.load(file)
 
     response = input(f'Found {n_matched_entries} matched entries and {n_missing_index_entries} missing entries in the index, total number of entries will be {len(entries)}. Insert missing? [Y/n]: ')
 
     if response != 'Y':
         print('Cancelling the operation')
+
+    records = []
+
+    for i, entry in enumerate(sorted(entries, key = lambda entry: entry.timestamp)):
+        offset = i // batch_size * batch_size
+
+        folder = BATCH_FOLDER_NAME.format(first = offset + 1, last = offset + batch_size)
+        folder_path = os.path.join(target_path, folder)
+
+        if not os.path.isdir(folder_path):
+            os.mkdir(folder_path)
+
+        os.system(f'cp {os.path.join(threads_path, str(entry.thread_id) + ".txt")} {folder_path}')
+
+        entry.folder = folder
+        records.append(entry.as_record())
+
+    df = DataFrame(records)
+    df.to_csv(index_path, sep = '\t', index = False)
 
 
 @main.command()
@@ -914,8 +938,8 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
     records_list = []
     records = {}
 
-    offset = 1
-    batch_max_count = offset + batch_size - 1
+    offset = 0
+    batch_max_count = offset + batch_size
 
     batch_folder_size = None
     batch_folder_name = None
@@ -925,7 +949,7 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
         nonlocal offset, batch_max_count, batch_folder_size, batch_folder_name, batch_folder_path
 
         while True:
-            batch_folder_name = BATCH_FOLDER_NAME.format(first = offset, last = batch_max_count)
+            batch_folder_name = BATCH_FOLDER_NAME.format(first = offset + 1, last = batch_max_count)
             batch_folder_path = os.path.join(path, batch_folder_name)
             batch_folder_size = None
 
@@ -935,8 +959,8 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
                 if batch_folder_size < batch_size:  # Found an existing folder which is not full
                     break
 
-                offset = batch_max_count + 1
-                batch_max_count = offset + batch_size - 1
+                offset = batch_max_count
+                batch_max_count = offset + batch_size
             else:
                 os.makedirs(batch_folder_path)
                 batch_folder_size = 0
