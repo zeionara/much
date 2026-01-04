@@ -311,20 +311,20 @@ def merge_patches(master_index_path: str, slave_index_path: str, master_threads_
 
                 n_updated += 1
 
-    response = input(f'Finished comparing indices. {n_updated} threads will be updated, {n_inserted} threads will be inserted (total = {n_updated + n_inserted}. Continue? [Y/n]: ')
+    response = input(f'Finished comparing indices. {n_updated} threads will be updated, {n_inserted} threads will be inserted (total = {n_updated + n_inserted}). Continue? [Y/n]: ')
 
     if response != 'Y':
         print('Cancelling the operation')
         return
 
     for command in commands:
-        print(command)
+        os.system(command)
 
     records = [entry.as_record() for entry in master_entries]
 
     df = DataFrame(records)
     print(df)
-    # df.to_csv(master_index_path, sep = '\t', index = False)
+    df.to_csv(master_index_path, sep = '\t', index = False)
 
 
 @main.command()

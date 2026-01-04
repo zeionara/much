@@ -106,9 +106,15 @@ cd /tmp
 git clone git@github.com:zeionara/much.git
 sudo mv much /opt
 sudo chown $USERNAME:$USERNAME /opt/much
+cd /opt/much
+git submodule update --init
 ```
 
-2. Make sure that file `/opt/much/load.sh` has correct values for variables `PROJECT_ROOT` and `CONDA_ROOT` (it is recommended to create symbolic link `/opt/conda` which points to an actual `anaconda` location). 
+2. Make sure that file `/opt/much/load.sh` has correct values for variables `PROJECT_ROOT` and `CONDA_ROOT` (it is recommended to create symbolic link `/opt/conda` which points to an actual `anaconda` location):
+
+```sh
+sudo ln -s /home/zeio/miniconda3 /opt/conda
+```
 
 3. Set up the following crontab job:
 
