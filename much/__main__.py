@@ -239,6 +239,95 @@ def fix_thread_folder_names(index_path: str, threads_path: str):
 
 
 @main.command()
+@option('--master-index', 'master_index_path', type = str)
+@option('--slave-index', 'slave_index_path', type = str)
+@option('--master-threads', 'master_threads_path', type = str)
+@option('--slave-threads', 'slave_threads_path', type = str)
+@option('--batch-size', '-b', type = int, default = 10_000)
+def merge_patches(master_index_path: str, slave_index_path: str, master_threads_path: str, slave_threads_path: str, batch_size: int):
+    master_index = read_csv(master_index_path, sep = '\t')
+    slave_index = read_csv(slave_index_path, sep = '\t')
+
+    master_entries = []
+    master_indexed_threads = {}
+
+    master_index_offset = 0
+
+    for _, row in tqdm(tuple(master_index.iterrows()), desc = 'Reading master index'):
+        entry = IndexEntry.from_json(row.to_dict())
+
+        master_entries.append(entry)
+        master_indexed_threads[entry.thread_id] = master_index_offset
+
+        master_index_offset += 1
+
+    n_updated = 0
+    n_inserted = 0
+    commands = []
+
+    for _, row in tuple(slave_index.iterrows()):
+        entry = IndexEntry.from_json(row.to_dict())
+
+        if (master_entry_index := master_indexed_threads.get(entry.thread_id)) is None:
+            offset = master_index_offset // batch_size * batch_size
+            batch_max_count = offset + batch_size
+
+            thread_path = None if isnan(entry.folder) else os.path.join(slave_threads_path, entry.folder, f'{entry.thread_id}.txt')
+            entry.folder = BATCH_FOLDER_NAME.format(first = offset + 1, last = batch_max_count)
+
+            print(f'Missing thread {entry.thread_id} in master. Adding to folder {entry.folder}')
+
+            master_entries.append(entry)
+            master_indexed_threads[entry.thread_id] = master_index_offset
+            master_index_offset += 1
+
+            if thread_path is None:
+                commands.append(f'touch {os.path.join(master_threads_path, entry.folder, f"{entry.thread_id}.txt")}')
+                # with open(os.path.join(master_threads_path, entry.folder, f'{entry.thread_id}.txt'), 'w', encoding = 'utf-8'):
+                #     pass
+            else:
+                commands.append(f'cp {thread_path} {os.path.join(master_threads_path, entry.folder, f"{entry.thread_id}.txt")}')
+
+            n_inserted += 1
+        else:
+            master_entry = master_entries[master_entry_index]
+
+            master_thread_path = os.path.join(master_threads_path, master_entry.folder, f'{master_entry.thread_id}.txt')
+            master_st_size = os.stat(master_thread_path).st_size
+
+            if isnan(entry.folder):
+                thread_path = None
+                thread_st_size = 0
+            else:
+                thread_path = os.path.join(slave_threads_path, entry.folder, f'{entry.thread_id}.txt')
+                thread_st_size = os.stat(thread_path).st_size
+
+            if thread_st_size > master_st_size:
+                print(f'Slave\'s thread {entry.thread_id} is larger than master\'s ({thread_st_size} > {master_st_size})')
+                entry.folder = master_entry.folder
+
+                master_entries[master_entry_index] = entry
+                commands.append(f'cp {thread_path} {master_thread_path}')
+
+                n_updated += 1
+
+    response = input(f'Finished comparing indices. {n_updated} threads will be updated, {n_inserted} threads will be inserted (total = {n_updated + n_inserted}. Continue? [Y/n]: ')
+
+    if response != 'Y':
+        print('Cancelling the operation')
+        return
+
+    for command in commands:
+        print(command)
+
+    records = [entry.as_record() for entry in master_entries]
+
+    df = DataFrame(records)
+    print(df)
+    # df.to_csv(master_index_path, sep = '\t', index = False)
+
+
+@main.command()
 @option('--index', '-i', 'index_path', type = str, default = INDEX)
 @option('--threads', '-t', 'threads_path', type = str, default = PATH)
 @option('--mtime', '-m', 'mtime_path', type = str, default = PATH)
@@ -991,21 +1080,21 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
             refresh_batch_folder_path()
 
         topics = fetcher.fetch(THREAD_URL.format(thread = thread_id))
-        is_empty = len(topics) < 1
+        # is_empty = len(topics) < 1
 
         records_list.append(
             record := {
                 'thread': thread_id,
                 'date': f'{day}-{month}-20{year}',
                 'title': Post.from_body(BeautifulSoup(thread['comment'], 'html.parser'))[1].text,
-                'folder': None if is_empty else batch_folder_name if last_batch_folder_name is None else last_batch_folder_name,
+                'folder': batch_folder_name if last_batch_folder_name is None else last_batch_folder_name,
                 'open': True
             }
         )
 
-        if is_empty:
-            print(f'Empty thread {thread_id}')
-            continue
+        # if is_empty:
+        #     print(f'Empty thread {thread_id}')
+        #     continue
 
         exporter.export(
             topics,
