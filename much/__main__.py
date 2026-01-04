@@ -1085,33 +1085,38 @@ def grab_one(i: int, row: dict, batch_size: int, path: str, skip_empty: bool, pr
 
     board = row["board"]
 
+    thread_description = f'{batch_folder_name}/{thread} {row["date"]}'
+
     if update_boards and isnan(board):
         response = None
+        board = None
+        n_attempts = 10
 
-        while response is None or response.status_code != 200 or (len(response.text) < 1):
+        while n_attempts > 0 and (response is None or response.status_code != 200 or (len(response.text) < 1)):
             try:
-                response = get(url, timeout = TIMEOUT)
+                print(f'{thread_description} FETCHING.BOARD {url}')
+                n_attempts -= 1
+                response = get(url, timeout = 60)
             except (ConnectionError, ChunkedEncodingError) as e:
-                print(f'Encountered error when fetching thread {thread} page: {e}. Waiting for {SSL_ERROR_DELAY} before retrying...')
+                print(f'Encountered error when fetching thread {thread} page for updating board: {e}. Waiting for {SSL_ERROR_DELAY} before retrying...')
                 sleep(SSL_ERROR_DELAY)
                 print('Retrying...')
                 response = None
 
-        board = _get_board_name_from_thread_body(BeautifulSoup(response.text, 'html.parser'))
+        if response.status_code == 200:
+            board = _get_board_name_from_thread_body(BeautifulSoup(response.text, 'html.parser'))
 
-        if board is not None:
-            updated = True
-
-    thread_description = f'{batch_folder_name}/{thread} {row["date"]}'
+            if board is not None:
+                updated = True
 
     if os.path.isfile(thread_path) and (skip_empty or thread in empty_threads or os.stat(thread_path).st_size > 0):
         # print(f'File {thread_path} exists. Not pulling')
         # pbar.update()
-        print(f'{thread_description} SKIPPING')
+        # print(f'{thread_description} SKIPPING')
         return ThreadUpdate(i = i, board = board, updated = updated)
         # continue
 
-    print(f'{thread_description} FETCHING')
+    print(f'{thread_description} FETCHING {url}')
 
     fetched = False
 
