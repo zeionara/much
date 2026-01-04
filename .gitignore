@@ -2,3 +2,5 @@
 dist/*
 *.egg-info
 assets/data
+assets/patch
+assets/logs

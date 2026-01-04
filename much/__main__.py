@@ -1059,6 +1059,9 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
     fetcher = Fetcher()
     exporter = Exporter()
 
+    n_indexed = 0
+    n_exported = 0
+
     for thread in tqdm(json['threads'] if top_n is None else json['threads'][:top_n]):
         day, month, year = thread['date'].split(' ')[0].split('/')
 
@@ -1091,6 +1094,7 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
                 'open': True
             }
         )
+        n_indexed += 1
 
         # if is_empty:
         #     print(f'Empty thread {thread_id}')
@@ -1101,11 +1105,16 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
             format = Format.TXT,
             path = (os.path.join(batch_folder_path, f'{thread_id}.txt') if last_thread_path is None else last_thread_path)
         )
+        n_exported += 1
 
         records[thread_id] = record
 
         if last_thread_path is None:
             batch_folder_size += 1
+
+    n_new = 0
+    n_closed = 0
+    n_existing = 0
 
     if last_records is None:
         df = DataFrame.from_records(records_list)
@@ -1113,12 +1122,18 @@ def load(url: str, path: str, index: str, batch_size: int, top_n: int, poster_ro
         for thread, item in last_records.items():
             if thread not in records and item['open'] is True:
                 item['open'] = False
+                n_closed += 1
 
         for thread, item in records.items():
             if thread not in last_records:
                 last_records_list.append(item)
+                n_new += 1
+            else:
+                n_existing += 1
 
         df = DataFrame(last_records_list)
+
+    print(f'Indexed = {n_indexed}, Exported = {n_exported}, New = {n_new}, Existing = {n_existing}, Closed = {n_closed}')
 
     df.to_csv(index, sep = '\t', index = False)
 

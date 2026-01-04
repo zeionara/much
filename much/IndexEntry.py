@@ -31,5 +31,5 @@ class IndexEntry:
             'date': self.timestamp.strftime(TIMESTAMP_FORMAT),
             'title': self.title,
             'folder': self.folder,
-            'is_open': self.is_open
+            'open': self.is_open
         }
