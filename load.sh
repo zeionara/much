@@ -27,4 +27,4 @@ fi
 date +"%Y-%m-%d %H:%M:%S" >> $LOG_FILE
 
 cd $PROJECT_ROOT
-conda run -n much --no-capture-output python -m much load -i $DATASET_ROOT/index.tsv -r $DATASET_ROOT/media -p $DATASET_ROOT/threads 1>> $LOG_FILE 2>&1
+conda run -n raconteur --no-capture-output python -m much load -i $DATASET_ROOT/index.tsv -r $DATASET_ROOT/media -p $DATASET_ROOT/threads 1>> $LOG_FILE 2>&1
