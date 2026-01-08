@@ -9,6 +9,11 @@ from rr.util import is_url, retry
 from .VkUploader import VkUploader, URL_TEMPLATE, TIMEOUT, API_VERSION
 
 
+DOWNLOAD_HEADERS = {
+    "User-Agent": "Mozilla/5.0"
+}
+
+
 class VkPhotoUploader(VkUploader):
     def __init__(
         self,
@@ -51,7 +56,7 @@ class VkPhotoUploader(VkUploader):
             )
 
         if is_url(path):
-            file = (f'image{Path(path).suffix}', BufferedReader(BytesIO(get(path, timeout = TIMEOUT).content)))
+            file = (f'image{Path(path).suffix}', BufferedReader(BytesIO(get(path, timeout = TIMEOUT, headers = DOWNLOAD_HEADERS).content)))
             response = get_response(file)
         else:
             with open(path, 'rb') as file:

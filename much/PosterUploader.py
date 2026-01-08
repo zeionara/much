@@ -25,6 +25,8 @@ class PosterUploader:
         self.video_uploader = VkVideoUploader.make() if video_uploader is None else video_uploader
 
     def upload(self, path: str, caption: str, description: str, verbose: bool = False):
+        print(f'Uploading poster {path}...')
+
         if is_image(path):
             return self.photo_uploader.upload(path, description, verbose), AttachmentType.PHOTO
 

@@ -39,6 +39,7 @@ from .nlp import summarize
 from .VkClient import VkClient
 # from .VkFileUploader import VkFileUploader
 from .VkAudioUploader import VkAudioUploader
+# from .PosterUploader import PosterUploader
 # from .VkPhotoUploader import VkPhotoUploader
 # from .VkVideoUploader import VkVideoUploader
 from .ArtistSampler import ArtistSampler
@@ -516,6 +517,8 @@ def upload_file(path: str, verbose: bool):
 
     # photo_id = VkPhotoUploader.make().upload(path, 'Foo bar baz', verbose = True)
     # video_id = VkVideoUploader.make().upload(path, 'Foo bar baz', 'qux quux quuz', verbose = True)
+
+    # PosterUploader().upload(path, 'Foo bar baz', 'qux quux quuz', verbose = True)
 
     audio_id = VkAudioUploader.make().upload('foo.mp3', 'foo', 'foo', verbose)
     print(audio_id)
