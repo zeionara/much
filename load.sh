@@ -21,7 +21,7 @@ fi
 . "$CONDA_ROOT/etc/profile.d/conda.sh"
 
 if test -f $LOG_FILE; then
-  echo -e '\n' >> $LOG_FILE
+  echo >> $LOG_FILE
 fi
 
 date +"%Y-%m-%d %H:%M:%S" >> $LOG_FILE

@@ -25,7 +25,7 @@ fi
 . /home/zeio/bashrc/creds/personal.sh
 
 if test -f $LOG_FILE; then
-  echo '' >> $LOG_FILE
+  echo >> $LOG_FILE
 fi
 
 date +"%Y-%m-%d %H:%M:%S" >> $LOG_FILE

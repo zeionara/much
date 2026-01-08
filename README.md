@@ -122,6 +122,14 @@ sudo ln -s /home/zeio/miniconda3 /opt/conda
 */15 * * * * timeout 15m /bin/bash /opt/much/load.sh
 ```
 
+### Generating speech for the pulled threads
+
+Crontab entry example for the [alternation script](/alternate.sh):
+
+```sh
+0 * * * * timeout 60m /bin/bash /opt/much/alternate.sh
+```
+
 ### Listing and downloading threads from [the arhivach website][arhivach] to update [branch][branch] dataset
 
 To update [branch][branch] dataset perform the following steps. Note that huggingface doesn't allow to store more than 1000000 files in a single repo, therefore it is very likely that you will need to distribute files with thread content across multiple repos.
