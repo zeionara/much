@@ -4,7 +4,7 @@ from io import BytesIO, BufferedReader
 
 from requests import post as postt, get
 
-# from rr.util import is_image, is_video
+from rr.util import is_image  # , is_video
 
 from .ImageSearchEngine import ImageSearchEngine
 
@@ -89,12 +89,20 @@ class VkClient:
         self.poster_uploader = PosterUploader()
         self.post_uploader = VkPostUploader.make()
 
-    def post2(self, audio_path: str, caption: str, artist: str, poster_path: str = None, file_path: int = None, description: str = None, file_tags: list[str] = None, verbose: bool = False):
+    def post2(self, audio_path: str, caption: str, artist: str, poster_paths: str = None, file_path: int = None, description: str = None, file_tags: list[str] = None, verbose: bool = False):
         audio = self.audio_uploader.upload(audio_path, caption, artist, verbose)
 
-        if poster_path is None:
-            poster, poster_type = None, None
+        if poster_paths is not None:
+            poster = poster_type = None
 
+            for poster_path in poster_paths:
+                poster_candidate, poster_type_candidate = self.poster_uploader.upload(poster_path, caption, description, verbose)
+
+                if poster is None and poster_type is None and is_image(poster_path):
+                    poster = poster_candidate
+                    poster_type = poster_type_candidate
+
+        if poster is None or poster_type is None:
             for poster_path_ in self.search_engine.search(caption):
                 try:
                     poster, poster_type = self.poster_uploader.upload(poster_path_, caption, description, verbose)
@@ -102,8 +110,6 @@ class VkClient:
                     pass
                 else:
                     break
-        else:
-            poster, poster_type = self.poster_uploader.upload(poster_path, caption, description, verbose)
 
         if file_path is None:
             file = None

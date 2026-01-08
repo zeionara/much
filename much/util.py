@@ -130,10 +130,22 @@ def pull_original_posters(thread: dict, root: str, allowed_extensions = ALLOWED_
                     file.write(image)
 
 
-def find_original_poster(thread: str, root: str):
+def find_original_posters(thread: str, root: str):
+    candidates = []
+
     for file in os.listdir(root):
-        if Path(file).stem == thread:
-            return os.path.join(root, file)
+        if Path(file).stem.startswith(thread):
+            path = os.path.join(root, file)
+            candidates.append((path, os.stat(path).st_size))
+
+    if len(candidates) > 0:
+        print('Found poster candidates:')
+        for path, _ in candidates:
+            print(path)
+
+        return [candidate[0] for candidate in sorted(candidates, key = lambda candidate: candidate[1], reverse = True)]
+
+    print('Didn\'t find any posters')
 
     return None
 

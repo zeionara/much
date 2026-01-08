@@ -32,7 +32,7 @@ from .Fetcher import Fetcher, Topic, SSL_ERROR_DELAY
 from .Exporter import Exporter, Format
 from .Post import Post
 from .util import normalize, SPACE, pull_original_poster, pull_original_posters, \
-    drop_original_poster, find_original_poster, get_file_modification_datetime, find_file, offset_batch_name, BATCH_FOLDER_NAME, make_grabbed_folder_path  # , post_process_summary, truncate_translation
+    drop_original_poster, find_original_posters, get_file_modification_datetime, find_file, offset_batch_name, BATCH_FOLDER_NAME, make_grabbed_folder_path  # , post_process_summary, truncate_translation
 # from .vk import upload_audio
 from .ImageSearchEngine import ImageSearchEngine
 from .nlp import summarize
@@ -650,24 +650,6 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
     input_entries = []
     output_entries = []
 
-    # token = env.get('MUCH_VK_TOKEN')
-
-    # if token is None:
-    #     raise ValueError('vk token is required to post content')
-
-    # token_owner = env.get('MUCH_VK_USER_ID')
-
-    # if token_owner is None:
-    #     raise ValueError('vk user id is required to post content')
-
-    # audio_owner = env.get('MUCH_VK_GROUP_ID')
-
-    # if audio_owner is not None:
-    #     audio_owner = int(audio_owner)
-
-    # if not os.path.isfile(path):
-    #     raise ValueError(f'No such file: {path}')
-
     # 1. Read the file
 
     with open(path, 'r', encoding = 'utf-8') as file:
@@ -675,13 +657,18 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
             thread, name = line[:-1].split(' ', maxsplit = 1)
             input_entries.append({'thread': thread, 'name': name})
 
+    n_entries = len(input_entries)
+    print(f'Found {n_entries} entries in the alternation list')
+
     # 2. Check which threads are no longer available, and alternate them
 
     vk_client = VkClient(interactive = interactive)
-    # file_uploader = VkFileUploader.make()
 
-    hf_client = HuggingFaceClient(hf_cache = 'hf-cache', local = True, device = 0)
+    # hf_client = HuggingFaceClient(hf_cache = 'hf-cache', local = True, device = 0)
+    hf_client = HuggingFaceClient(local = True, device = 0)
     artist_sampler = ArtistSampler()
+
+    i = 1
 
     for entry in input_entries:
         thread = entry['thread']
@@ -693,7 +680,8 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
             target_txt_path = os.path.join(alternated, f'{name}.txt')
             target_mp3_path = os.path.join(alternated, f'{name}.mp3')
 
-            print(f'Alternating thread {thread} as {target_txt_path}...')
+            print(f'Handling thread {thread} as {target_txt_path} ({i} / {n_entries})...')
+            i += 1
             found_thread = False
 
             if not os.path.isfile(target_txt_path):
@@ -732,10 +720,11 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                 except (ValueError, OutOfMemoryError):
                     summary = summarize(target_txt_path, max_length = 7, default = caption)
 
-                # post_id = vk_client.post2(
-                vk_client.post2(
+                print('Creating vk post...')
+
+                post_id = vk_client.post2(
                     audio_path = target_mp3_path,
-                    poster_path = find_original_poster(thread, poster_root),
+                    poster_paths = find_original_posters(thread, poster_root),
                     file_path = target_txt_path,
 
                     caption = summary,
@@ -744,6 +733,8 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                     file_tags = ['2ch', 'anon', 'thread'],
                     verbose = verbose
                 )
+
+                print(f'Posted successfully at https://vk.com/wall-224461031_{post_id}')
 
                 # print(post_id)
 
@@ -761,6 +752,8 @@ def alternate(path: str, threads: str, alternated: str, artist_one: str, artist_
                 # )
         else:
             output_entries.append(entry)
+
+    print(f'Left {len(output_entries)} entries. Writing them back to the alternation list...')
 
     # 3. Write the file
 
