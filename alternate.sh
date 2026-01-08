@@ -12,6 +12,8 @@ RR_DATASET_ROOT=$RR_PROJECT_ROOT/assets/auch
 LOG_ROOT=$PROJECT_ROOT/assets/logs
 LOG_FILE=$LOG_ROOT/alternate.txt
 
+export PYTHONUNBUFFERED=True
+
 if test ! -d $LOG_ROOT; then
   mkdir $LOG_ROOT
 fi

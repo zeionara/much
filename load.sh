@@ -10,6 +10,8 @@ DATASET_ROOT=$PROJECT_ROOT/assets/patch
 LOG_ROOT=$PROJECT_ROOT/assets/logs
 LOG_FILE=$LOG_ROOT/load.txt
 
+export PYTHONUNBUFFERED=True
+
 if test ! -d $LOG_ROOT; then
   mkdir $LOG_ROOT
 fi
