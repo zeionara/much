@@ -4,7 +4,7 @@ set -euo pipefail
 
 RR_PROJECT_ROOT=/opt/raconteur
 PROJECT_ROOT=/opt/much
-CONDA_ROOT=/opt/conda
+VENV_ROOT=/opt/marude/.venv
 
 DATASET_ROOT=$PROJECT_ROOT/assets/patch
 RR_DATASET_ROOT=$RR_PROJECT_ROOT/assets/auch
@@ -23,8 +23,7 @@ if test ! -d $DATASET_ROOT; then
   exit 1
 fi
 
-. "$CONDA_ROOT/etc/profile.d/conda.sh"
-. /home/zeio/bashrc/creds/personal.sh
+. /home/zeio/.oh-my-zsh/custom/bashrc/creds/personal.sh
 
 if test -f $LOG_FILE; then
   echo >> $LOG_FILE
@@ -34,7 +33,7 @@ date +"%Y-%m-%d %H:%M:%S" >> $LOG_FILE
 
 cd $PROJECT_ROOT
 
-conda run -n raconteur --no-capture-output python -m much alternate \
+$VENV_ROOT/bin/python -m much alternate \
   $RR_DATASET_ROOT/index.txt \
   $DATASET_ROOT/threads \
   $RR_DATASET_ROOT/threads \
