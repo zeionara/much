@@ -122,6 +122,53 @@ sudo ln -s /home/zeio/miniconda3 /opt/conda
 */15 * * * * timeout 15m /bin/bash /opt/much/load.sh
 ```
 
+#### Moving to another server
+
+1. Disable cron command:
+
+```sh
+> crontab -e
+# */15 * * * * timeout 15m /bin/bash /opt/much/load.sh
+```
+
+2. Check if `index.tsv` and `threads/` are synchronized:
+
+```sh
+cd assets/patch
+./count.sh
+```
+
+2.1. If `index.tsv` and `threads/` are not syncrhonized:
+
+2.1.1. Commit current folder state:
+
+```sh
+git add threads index.tsv
+git commit -m 'feat(threads): added more threads'
+git push
+```
+
+2.1.2. Sort threads:
+
+```sh
+cd ../..
+python -m much sort -s assets/patch/index.tsv -d assets/patch/index.tsv -t assets/patch/threads
+```
+
+2.1.3. Synchronize threads:
+
+```sh
+python -m much sync -i assets/patch/index.tsv -p assets/patch/threads -t assets/orphan
+```
+
+2.1.4. Commit updated folder state:
+
+```sh
+git add threads index.tsv
+git commit -m 'sort(threads): sorted threads, deleted threads with missing index'
+git push
+```
+
 ### Generating speech for the pulled threads
 
 Crontab entry example for the [alternation script](/alternate.sh):
